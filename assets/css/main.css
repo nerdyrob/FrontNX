@@ -1,0 +1,75 @@
+@import "tailwindcss";
+@import "../../.nuxt/ui.css";
+@import "katex/dist/katex.css";
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Claude-style prose for message content */
+.prose-message p {
+  margin-bottom: 0.75em;
+}
+
+.prose-message p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-message ul,
+.prose-message ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.prose-message li {
+  margin-bottom: 0.25em;
+}
+
+.prose-message code {
+  font-size: 0.875em;
+  background: var(--ui-bg-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.prose-message pre {
+  margin: 0.75em 0;
+  padding: 1em;
+  border-radius: 0.5rem;
+  background: var(--ui-bg-elevated);
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.5;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.prose-message pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ui-border-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ui-border);
+}
