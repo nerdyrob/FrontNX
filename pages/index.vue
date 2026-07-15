@@ -7,12 +7,13 @@
       :open="sidebarOpen"
       @select="loadSession"
       @new="newSession"
+      @delete="deleteSession"
     />
 
     <!-- Main chat area -->
-    <div class="flex flex-col flex-1 min-w-0">
+    <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-(--ui-bg-elevated)/40">
       <!-- Header -->
-      <header class="flex items-center justify-between px-6 py-3 border-b border-default shrink-0">
+      <header class="flex items-center justify-between px-6 py-3 border-b border-default shrink-0 bg-(--ui-bg)/80 backdrop-blur-sm">
         <div class="flex items-center gap-4">
           <UButton
             icon="i-lucide-panel-left-close"
@@ -22,9 +23,14 @@
             class="lg:hidden"
             @click="sidebarOpen = !sidebarOpen"
           />
-          <div class="flex items-center gap-2">
-            <span class="font-semibold text-sm">Chat</span>
-            <span class="text-xs text-muted-foreground hidden sm:inline">with LM Studio</span>
+          <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <UIcon name="i-lucide-sparkles" class="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <span class="font-semibold text-sm">Chat</span>
+              <span class="text-xs text-muted-foreground hidden sm:inline ml-1.5">with LM Studio</span>
+            </div>
           </div>
         </div>
 
@@ -35,28 +41,20 @@
             :models="chat.availableModels.value"
             @refresh="chat.loadModels()"
           />
-          <UButton
-            icon="i-lucide-plus"
-            size="sm"
-            color="neutral"
-            variant="ghost"
-            title="New chat"
-            @click="newSession"
-          />
         </div>
       </header>
 
       <!-- Messages -->
       <main ref="messagesContainer" class="flex-1 overflow-y-auto">
-        <div class="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        <div class="max-w-3xl mx-auto px-4 py-8 space-y-6">
           <!-- Empty state -->
           <div
             v-if="chat.messages.value.length === 0"
             class="flex flex-col items-center justify-center h-full min-h-[60vh]"
           >
-            <div class="text-center space-y-4 max-w-md">
-              <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <UIcon name="i-lucide-sparkles" class="w-8 h-8 text-primary" />
+            <div class="text-center space-y-5 max-w-md">
+              <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary via-primary/70 to-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                <UIcon name="i-lucide-sparkles" class="w-8 h-8 text-white" />
               </div>
               <div v-if="chat.loadError.value" class="space-y-2">
                 <h2 class="text-lg font-semibold">Connection Error</h2>
@@ -109,7 +107,7 @@ const chat = useChatState()
 const messagesContainer = ref<HTMLElement | null>(null)
 const sidebarOpen = ref(true)
 
-const sessions = ref<{ id: string; title: string }[]>([])
+const sessions = ref<{ id: string; path: string; title: string; preview: string; timestamp: string }[]>([])
 const currentSessionId = ref<string | null>(null)
 
 function handleSend(text: string) {
@@ -129,6 +127,20 @@ function newSession() {
 
 async function loadSessions() {
   sessions.value = await $fetch('/api/session/list')
+}
+
+async function deleteSession(id: string) {
+  const session = sessions.value.find((s) => s.id === id)
+  if (!session) return
+  await $fetch('/api/session/delete', {
+    method: 'DELETE',
+    body: { path: session.path },
+  })
+  if (currentSessionId.value === id) {
+    chat.newSession()
+    currentSessionId.value = null
+  }
+  await loadSessions()
 }
 
 onMounted(() => {

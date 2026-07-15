@@ -92,8 +92,8 @@ export class SessionService {
   }
 
   filename(meta: SessionMeta): string {
-    const date = meta.created.replace(/[:.]/g, '-').slice(0, 19)
-    const safeModel = meta.model.replace(/[^a-zA-Z0-9_-]/g, '_')
-    return `${date}_${safeModel}.md`
+    const d = new Date(meta.created)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.md`
   }
 }

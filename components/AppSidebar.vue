@@ -17,20 +17,29 @@
         @click="$emit('new')"
       />
     </div>
-    <div class="flex-1 overflow-y-auto p-2 space-y-1">
-      <button
+    <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div
         v-for="session in sessions"
         :key="session.id"
         :class="[
-          'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+          'group relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
           session.id === currentSessionId
-            ? 'bg-accented text-foreground font-medium'
+            ? 'bg-accented text-foreground shadow-sm'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         ]"
         @click="$emit('select', session.id)"
       >
-        <div class="truncate">{{ session.title }}</div>
-      </button>
+        <div class="truncate font-medium leading-tight">{{ session.preview || session.title }}</div>
+        <div class="text-[10px] text-dimmed mt-1">{{ session.timestamp }}</div>
+        <UButton
+          icon="i-lucide-trash-2"
+          size="2xs"
+          color="neutral"
+          variant="ghost"
+          class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          @click.stop="$emit('delete', session.id)"
+        />
+      </div>
       <div v-if="sessions.length === 0" class="px-3 py-8 text-center">
         <p class="text-xs text-muted-foreground">No sessions yet</p>
       </div>
@@ -40,13 +49,14 @@
 
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
-  sessions: { id: string; title: string }[]
+  sessions: { id: string; title: string; preview: string; timestamp: string }[]
   currentSessionId: string | null
   open?: boolean
 }>(), { open: true })
 
 defineEmits<{
   select: [id: string]
+  delete: [id: string]
   new: []
 }>()
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div class="border-t border-default bg-background">
-    <div class="max-w-3xl mx-auto px-4 py-4">
-      <div class="relative flex items-end gap-2 bg-elevated rounded-xl border border-default px-4 py-3 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all">
+    <div class="max-w-3xl mx-auto px-4 py-3">
+      <div class="relative flex items-end gap-2 bg-elevated rounded-2xl border border-default px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary focus-within:shadow-md transition-all">
         <ClientOnly>
           <UTextarea
             v-model="text"
