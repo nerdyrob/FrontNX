@@ -86,7 +86,7 @@
             :key="msg.id"
             :message="msg"
             :index="i"
-            :is-last="i === chat.messages.value.length - 1 && chat.isStreaming.value"
+            :is-last="i === chat.messages.value.length - 1"
             @delete="chat.deleteMessage(i)"
           />
         </div>

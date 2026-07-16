@@ -53,7 +53,7 @@ export function useChatState() {
       id: uid(),
       role: 'assistant',
       content: '',
-      createdAt: new Date().toISOString(),
+      createdAt: '',
     }
     messages.value.push(assistantMsg)
 
@@ -64,6 +64,9 @@ export function useChatState() {
         (delta) => {
           const last = messages.value[messages.value.length - 1]
           if (last.role === 'assistant') {
+            if (!last.createdAt) {
+              last.createdAt = new Date().toISOString()
+            }
             last.content += delta
           }
         },
@@ -71,6 +74,9 @@ export function useChatState() {
 
       const last = messages.value[messages.value.length - 1]
       if (last.role === 'assistant') {
+        if (!last.createdAt) {
+          last.createdAt = new Date().toISOString()
+        }
         last.content = fullContent
       }
 
@@ -78,6 +84,9 @@ export function useChatState() {
     } catch (err: any) {
       const last = messages.value[messages.value.length - 1]
       if (last.role === 'assistant') {
+        if (!last.createdAt) {
+          last.createdAt = new Date().toISOString()
+        }
         last.content = `Error: ${err.message ?? 'Request failed'}`
       }
     } finally {

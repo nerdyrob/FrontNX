@@ -25,15 +25,16 @@
             <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5 text-white" />
           </div>
           <span class="text-xs font-medium text-highlighted">Assistant</span>
-          <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
-          <span v-if="isLast && isStreaming" class="relative flex h-2 w-2">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          <span v-if="showProgressDots" class="inline-flex items-end gap-1">
+            <span class="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" style="animation-delay: 0ms; animation-duration: 900ms" />
+            <span class="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" style="animation-delay: 150ms; animation-duration: 900ms" />
+            <span class="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" style="animation-delay: 300ms; animation-duration: 900ms" />
           </span>
+          <span v-else-if="timestamp" class="text-[11px] text-dimmed">{{ timestamp }}</span>
         </div>
         <div class="pl-9 text-sm leading-relaxed prose-message">
           <MarkdownRenderer v-if="message.content" :content="message.content" />
-          <span v-else-if="isStreaming" class="text-muted italic">Thinking…</span>
+          <span v-else-if="showProgressDots" class="text-muted italic">Thinking…</span>
         </div>
       </div>
     </div>
@@ -66,7 +67,9 @@ defineEmits<{
 }>()
 
 const timestamp = computed(() => {
+  if (!props.message.createdAt) return ''
   const d = new Date(props.message.createdAt)
+  if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -74,5 +77,9 @@ const timestamp = computed(() => {
     hour: '2-digit',
     minute: '2-digit',
   })
+})
+
+const showProgressDots = computed(() => {
+  return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.createdAt)
 })
 </script>
