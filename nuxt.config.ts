@@ -1,8 +1,11 @@
 import tailwindcss from '@tailwindcss/vite'
 
+const isSharedMount = process.cwd().startsWith('/mnt/sharedfolder/')
+const defaultNitroOutput = isSharedMount ? '/tmp/frontnx-output' : '.output'
+
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
-  css: ['~/assets/css/main.css', '~~/.nuxt/ui.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/theme.css'],
   vite: {
     plugins: [tailwindcss()],
   },
@@ -17,10 +20,15 @@ export default defineNuxtConfig({
     preference: 'system',
     fallback: 'light',
   },
+  nitro: {
+    output: {
+      dir: process.env.NITRO_OUTPUT_DIR || defaultNitroOutput,
+    },
+  },
   ui: {
     theme: {
       colors: {
-        primary: 'blue',
+        primary: 'green',
         neutral: 'slate',
       },
     },

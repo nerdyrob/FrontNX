@@ -8,7 +8,7 @@
             :rows="1"
             :max-rows="6"
             placeholder="Type a message…"
-            class="flex-1 bg-transparent border-0 outline-none ring-0 p-0 text-sm resize-none placeholder:text-dimmed"
+            class="flex-1 bg-transparent border-0 outline-none ring-0 p-0 text-sm resize-none placeholder:text-muted"
             :disabled="disabled"
             @keydown.enter.exact="send"
             @keydown.shift.enter=""

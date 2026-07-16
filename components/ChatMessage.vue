@@ -7,8 +7,9 @@
           <div class="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <UIcon name="i-lucide-user" class="w-3.5 h-3.5 text-primary" />
           </div>
-          <span class="text-xs font-medium text-foreground">You</span>
-          <span class="text-[11px] text-dimmed">{{ time }}</span>
+          <span class="text-xs font-medium text-highlighted">You</span>
+          <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
+          <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
         </div>
         <div class="pl-9">
           <MarkdownRenderer :content="message.content" />
@@ -23,9 +24,8 @@
           <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
             <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5 text-white" />
           </div>
-          <span class="text-xs font-medium text-foreground">Assistant</span>
-          <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
-          <span class="text-[11px] text-dimmed">{{ time }}</span>
+          <span class="text-xs font-medium text-highlighted">Assistant</span>
+          <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
           <span v-if="isLast && isStreaming" class="relative flex h-2 w-2">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -33,7 +33,7 @@
         </div>
         <div class="pl-9 text-sm leading-relaxed prose-message">
           <MarkdownRenderer v-if="message.content" :content="message.content" />
-          <span v-else-if="isStreaming" class="text-muted-foreground italic">Thinking…</span>
+          <span v-else-if="isStreaming" class="text-muted italic">Thinking…</span>
         </div>
       </div>
     </div>
@@ -65,8 +65,14 @@ defineEmits<{
   delete: [index: number]
 }>()
 
-const time = computed(() => {
+const timestamp = computed(() => {
   const d = new Date(props.message.createdAt)
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 })
 </script>

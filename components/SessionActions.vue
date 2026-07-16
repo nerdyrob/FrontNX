@@ -4,7 +4,7 @@
       <template #header>
         <h3 class="font-semibold">Clear all messages?</h3>
       </template>
-      <p class="text-sm text-muted-foreground">
+      <p class="text-sm text-muted">
         This will delete every message in the current session. This action cannot be undone.
       </p>
       <template #footer>

@@ -21,6 +21,7 @@ export function useChatState() {
   const isStreaming = ref(false)
   const currentSessionPath = ref<string | null>(null)
   const loadError = ref<string | null>(null)
+  const sessionRefreshTick = ref(0)
 
   async function loadModels() {
     loadError.value = null
@@ -42,6 +43,7 @@ export function useChatState() {
       id: uid(),
       role: 'user',
       content: text,
+      model: selectedModel.value,
       createdAt: new Date().toISOString(),
     }
     messages.value.push(userMsg)
@@ -51,7 +53,6 @@ export function useChatState() {
       id: uid(),
       role: 'assistant',
       content: '',
-      model: selectedModel.value,
       createdAt: new Date().toISOString(),
     }
     messages.value.push(assistantMsg)
@@ -141,6 +142,7 @@ export function useChatState() {
       method: 'POST',
       body: { path: currentSessionPath.value, content },
     })
+    sessionRefreshTick.value++
   }
 
   async function rewriteSessionFile() {
@@ -154,6 +156,7 @@ export function useChatState() {
       method: 'POST',
       body: { path: currentSessionPath.value, content },
     })
+    sessionRefreshTick.value++
   }
 
   return {
@@ -163,6 +166,7 @@ export function useChatState() {
     isStreaming,
     currentSessionPath,
     loadError,
+    sessionRefreshTick,
     loadModels,
     sendMessage,
     loadSession,

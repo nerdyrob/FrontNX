@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../../.nuxt/ui.css";
+@import "@nuxt/ui";
 @import "katex/dist/katex.css";
 
 html {

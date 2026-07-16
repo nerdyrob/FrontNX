@@ -3,7 +3,7 @@
     <select
       :value="modelValue"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
-      class="min-w-[180px] rounded-md border border-(--ui-border) bg-(--ui-bg) px-3 py-1.5 text-sm text-(--ui-text) outline-none focus:border-(--ui-border-accented)"
+      class="min-w-[180px] rounded-md border border-default bg-default px-3 py-1.5 text-sm text-highlighted outline-none focus:border-primary"
       :disabled="loading"
     >
       <option value="" disabled>{{ loading ? 'Loading…' : 'Select model' }}</option>

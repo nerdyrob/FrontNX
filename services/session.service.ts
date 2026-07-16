@@ -21,9 +21,8 @@ export class SessionService {
 
     const body = messages
       .map((msg) => {
-        const label = msg.role === 'assistant'
-          ? `Assistant${msg.model ? ` (${msg.model})` : ''}`
-          : 'User'
+        const base = msg.role === 'assistant' ? 'Assistant' : 'User'
+        const label = `${base}${msg.model ? ` (${msg.model})` : ''}`
         return `## ${msg.createdAt} — ${label}\n\n${msg.content}\n`
       })
       .join('\n')

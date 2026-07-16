@@ -11,9 +11,9 @@
     />
 
     <!-- Main chat area -->
-    <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-(--ui-bg-elevated)/40">
+    <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-[var(--ui-bg-elevated)]/40">
       <!-- Header -->
-      <header class="flex items-center justify-between px-6 py-3 border-b border-default shrink-0 bg-(--ui-bg)/80 backdrop-blur-sm">
+      <header class="flex items-center justify-between px-6 h-[57px] border-b border-default shrink-0 bg-[var(--ui-bg)]/80 backdrop-blur-sm">
         <div class="flex items-center gap-4">
           <UButton
             icon="i-lucide-panel-left-close"
@@ -29,7 +29,7 @@
             </div>
             <div>
               <span class="font-semibold text-sm">Chat</span>
-              <span class="text-xs text-muted-foreground hidden sm:inline ml-1.5">with LM Studio</span>
+              <span class="text-xs text-muted hidden sm:inline ml-1.5">with LM Studio</span>
             </div>
           </div>
         </div>
@@ -58,11 +58,11 @@
               </div>
               <div v-if="chat.loadError.value" class="space-y-2">
                 <h2 class="text-lg font-semibold">Connection Error</h2>
-                <p class="text-sm text-muted-foreground">{{ chat.loadError.value }}</p>
+                <p class="text-sm text-muted">{{ chat.loadError.value }}</p>
               </div>
               <div v-else-if="!chat.availableModels.value.length" class="space-y-2">
                 <h2 class="text-lg font-semibold">Connecting to LM Studio</h2>
-                <p class="text-sm text-muted-foreground">Fetching available models…</p>
+                <p class="text-sm text-muted">Fetching available models…</p>
                 <UButton
                   loading
                   color="neutral"
@@ -72,9 +72,9 @@
               </div>
               <div v-else class="space-y-2">
                 <h2 class="text-lg font-semibold">Start a conversation</h2>
-                <p class="text-sm text-muted-foreground">
+                <p class="text-sm text-muted">
                   Send a message to begin chatting with
-                  <span class="font-medium text-foreground">{{ chat.selectedModel.value }}</span>
+                  <span class="font-medium text-highlighted">{{ chat.selectedModel.value }}</span>
                 </p>
               </div>
             </div>
@@ -161,5 +161,9 @@ watch(
 
 watch(() => chat.currentSessionPath.value, (path) => {
   if (path) loadSessions()
+})
+
+watch(() => chat.sessionRefreshTick.value, () => {
+  loadSessions()
 })
 </script>

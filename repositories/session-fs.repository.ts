@@ -101,7 +101,7 @@ export class SessionFsRepository implements ISessionRepository {
       }
 
       for (; i < lines.length; i++) {
-        const match = lines[i].match(/^## .+ — User$/)
+        const match = lines[i].match(/^## .+ — User(?: \(.+\))?$/)
         if (match) {
           i++
           const body: string[] = []
