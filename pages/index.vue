@@ -87,7 +87,7 @@
             :message="msg"
             :index="i"
             :is-last="i === chat.messages.value.length - 1"
-            @delete="chat.deleteMessage(i)"
+            @delete="confirmDeleteMessage(i)"
           />
         </div>
       </main>
@@ -116,6 +116,11 @@ function handleSend(text: string) {
   chat.sendMessage(text)
 }
 
+function confirmDeleteMessage(index: number) {
+  if (typeof window !== 'undefined' && !window.confirm('Delete this message?')) return
+  chat.deleteMessage(index)
+}
+
 async function loadSession(id: string) {
   currentSessionId.value = id
   const session = sessions.value.find((s) => s.id === id)
@@ -132,6 +137,7 @@ async function loadSessions() {
 }
 
 async function deleteSession(id: string) {
+  if (typeof window !== 'undefined' && !window.confirm('Delete this session? This cannot be undone.')) return
   const session = sessions.value.find((s) => s.id === id)
   if (!session) return
   await $fetch('/api/session/delete', {

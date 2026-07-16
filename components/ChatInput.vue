@@ -2,18 +2,16 @@
   <div class="border-t border-default bg-background">
     <div class="max-w-3xl mx-auto px-4 py-3">
       <div class="relative flex items-end gap-2 bg-elevated rounded-2xl border border-default px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary focus-within:shadow-md transition-all">
-        <ClientOnly>
-          <UTextarea
-            v-model="text"
-            :rows="1"
-            :max-rows="6"
-            placeholder="Type a message…"
-            class="flex-1 bg-transparent border-0 outline-none ring-0 p-0 text-sm resize-none placeholder:text-muted"
-            :disabled="disabled"
-            @keydown.enter.exact="send"
-            @keydown.shift.enter=""
-          />
-        </ClientOnly>
+        <textarea
+          ref="textareaRef"
+          v-model="text"
+          rows="1"
+          placeholder="Type a message…"
+          class="flex-1 bg-transparent border-0 outline-none ring-0 p-0 text-sm resize-none placeholder:text-muted leading-5 max-h-[7.5rem] overflow-y-auto"
+          :disabled="disabled"
+          @input="resizeTextarea"
+          @keydown.enter.exact.prevent="send"
+        />
         <div class="flex items-center gap-1 shrink-0">
           <UButton
             v-if="!streaming"
@@ -56,11 +54,28 @@ const emit = defineEmits<{
 }>()
 
 const text = ref('')
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+
+function resizeTextarea() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+}
 
 function send() {
   const msg = text.value.trim()
   if (!msg || props.streaming) return
   text.value = ''
+  resizeTextarea()
   emit('send', msg)
 }
+
+onMounted(() => {
+  resizeTextarea()
+})
+
+watch(text, () => {
+  nextTick(() => resizeTextarea())
+})
 </script>

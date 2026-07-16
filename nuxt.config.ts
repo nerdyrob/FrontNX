@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       lmStudioBaseUrl: 'http://192.168.1.85:1234',
+      chatRequestTimeoutMs: 900000,
     },
   },
   devtools: { enabled: false },

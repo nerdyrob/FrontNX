@@ -70,7 +70,7 @@ export class LmStudioService {
     const body = JSON.stringify({
       model,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
-      stream: false,
+      stream: true,
     })
 
     const res = await fetch(`${this.baseUrl}/v0/chat/completions`, {
@@ -84,11 +84,121 @@ export class LmStudioService {
       throw new Error(`Chat request failed: ${res.status} ${res.statusText}`)
     }
 
-    const json = await res.json() as any
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('Response body is not readable')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let eventType = ''
+    let eventData: string[] = []
+    let fullContent = ''
+    let metrics: ChatResponseMetrics | undefined
+
+    const extractDelta = (payload: any, currentEventType: string): string => {
+      if (currentEventType === 'message.delta' && typeof payload?.content === 'string') {
+        return payload.content
+      }
+      const deltaContent = payload?.choices?.[0]?.delta?.content
+      if (typeof deltaContent === 'string') return deltaContent
+      const textChunk = payload?.choices?.[0]?.text
+      if (typeof textChunk === 'string') return textChunk
+      return ''
+    }
+
+    const applyMetrics = (payload: any, currentEventType: string) => {
+      if (currentEventType === 'chat.end') {
+        const extracted = this.extractMetrics(payload?.result ?? payload)
+        metrics = extracted
+        return
+      }
+
+      if (payload?.stats || payload?.usage || payload?.result?.stats) {
+        metrics = this.extractMetrics(payload)
+      }
+    }
+
+    const maybeApplyFinalContent = (payload: any, currentEventType: string) => {
+      if (currentEventType === 'chat.end' && !fullContent) {
+        const resultPayload = payload?.result ?? payload
+        const fallbackContent = this.extractContent(resultPayload)
+        if (fallbackContent) fullContent = fallbackContent
+      }
+    }
+
+    const processPayload = (rawPayload: string, currentEventType: string) => {
+      if (!rawPayload || rawPayload === '[DONE]') return
+      try {
+        const payload = JSON.parse(rawPayload)
+        const delta = extractDelta(payload, currentEventType)
+        if (delta) {
+          fullContent += delta
+          onChunk?.(delta)
+        }
+        maybeApplyFinalContent(payload, currentEventType)
+        applyMetrics(payload, currentEventType)
+      } catch {
+        // Ignore malformed SSE frames.
+      }
+    }
+
+    const flushEvent = () => {
+      if (!eventData.length) {
+        eventType = ''
+        return
+      }
+      const payload = eventData.join('\n')
+      processPayload(payload, eventType)
+      eventType = ''
+      eventData = []
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+
+        if (!trimmed) {
+          flushEvent()
+          continue
+        }
+
+        if (trimmed.startsWith('event: ')) {
+          eventType = trimmed.slice(7).trim()
+          continue
+        }
+
+        if (trimmed.startsWith('data: ')) {
+          const payload = trimmed.slice(6)
+          if (!eventType) {
+            // OpenAI-style SSE often omits explicit event names; handle each data frame directly.
+            processPayload(payload, '')
+          } else {
+            eventData.push(payload)
+          }
+        }
+      }
+    }
+
+    // Flush any trailing frame not followed by a blank line.
+    flushEvent()
+
+    if (!metrics) {
+      metrics = {
+        processingTimeMs: 0,
+        tokensUsed: 0,
+        tokensPerSecond: 0,
+      }
+    }
 
     return {
-      content: this.extractContent(json),
-      metrics: this.extractMetrics(json),
+      content: fullContent,
+      metrics,
     }
   }
 }

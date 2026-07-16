@@ -57,6 +57,11 @@ export function useChatState() {
     }
     messages.value.push(assistantMsg)
     const startedAt = Date.now()
+    const timeoutMs = Number(config.public.chatRequestTimeoutMs ?? 0)
+    const requestController = new AbortController()
+    const timeoutHandle = timeoutMs > 0
+      ? setTimeout(() => requestController.abort(), timeoutMs)
+      : null
 
     try {
       const response = await lmStudio.sendChat(
@@ -71,6 +76,7 @@ export function useChatState() {
             last.content += delta
           }
         },
+        requestController.signal,
       )
 
       const last = messages.value[messages.value.length - 1]
@@ -92,13 +98,23 @@ export function useChatState() {
       await saveSession()
     } catch (err: any) {
       const last = messages.value[messages.value.length - 1]
+      const isTimeout = err?.name === 'AbortError' && timeoutMs > 0
       if (last.role === 'assistant') {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
-        last.content = `Error: ${err.message ?? 'Request failed'}`
+        last.content = isTimeout
+          ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
+          : `Error: ${err.message ?? 'Request failed'}`
+      }
+
+      try {
+        await saveSession()
+      } catch (saveErr) {
+        console.error('Failed to save errored session:', saveErr)
       }
     } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle)
       isStreaming.value = false
     }
   }

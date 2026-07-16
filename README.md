@@ -29,11 +29,10 @@ server/api         (Nitro routes for file I/O)
 npm install
 ```
 
-Configure the LM Studio base URL in `.env`:
+Configure settings directly in [nuxt.config.ts](nuxt.config.ts):
 
-```
-NUXT_PUBLIC_LM_STUDIO_BASE_URL=http://localhost:1234
-```
+- `runtimeConfig.public.lmStudioBaseUrl`
+- `runtimeConfig.public.chatRequestTimeoutMs` (default `900000` = 15 minutes)
 
 ## Development
 
@@ -75,7 +74,6 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 ├── nuxt.config.ts             # Nuxt configuration
 ├── vitest.config.ts           # Vitest configuration
 ├── package.json
-├── .env                       # Environment variables
 ├── types/                     # TypeScript interfaces
 │   ├── model.ts
 │   ├── chat.ts

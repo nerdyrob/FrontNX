@@ -10,6 +10,15 @@
           <span class="text-xs font-medium text-highlighted">You</span>
           <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
           <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
+          <UButton
+            v-if="message.content"
+            :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
+            @click="copyMessage"
+          />
         </div>
         <div class="pl-9">
           <MarkdownRenderer :content="message.content" />
@@ -31,6 +40,15 @@
             <span class="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" style="animation-delay: 300ms; animation-duration: 900ms" />
           </span>
           <span v-else-if="timestamp" class="text-[11px] text-dimmed">{{ timestamp }}</span>
+          <UButton
+            v-if="!showProgressDots && message.content"
+            :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
+            @click="copyMessage"
+          />
         </div>
         <div class="pl-9 text-sm leading-relaxed prose-message">
           <MarkdownRenderer v-if="message.content" :content="message.content" />
@@ -51,7 +69,7 @@
       color="neutral"
       variant="ghost"
       icon="i-lucide-trash-2"
-      class="absolute -top-0.5 -right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+      class="absolute -top-0.5 -right-1 text-dimmed hover:text-highlighted active:text-highlighted transition-colors"
       @click="$emit('delete', index)"
     />
   </div>
@@ -86,6 +104,41 @@ const timestamp = computed(() => {
 
 const showProgressDots = computed(() => {
   return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.createdAt)
+})
+
+const copied = ref(false)
+let copiedResetTimer: ReturnType<typeof setTimeout> | null = null
+
+async function copyMessage() {
+  if (!props.message.content) return
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(props.message.content)
+    } else {
+      const el = document.createElement('textarea')
+      el.value = props.message.content
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.focus()
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+
+    copied.value = true
+    if (copiedResetTimer) clearTimeout(copiedResetTimer)
+    copiedResetTimer = setTimeout(() => {
+      copied.value = false
+    }, 1500)
+  } catch {
+    copied.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  if (copiedResetTimer) clearTimeout(copiedResetTimer)
 })
 
 const processingTimeLabel = computed(() => {

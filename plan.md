@@ -129,9 +129,8 @@ Thin Vue bridges — wrap services in reactive refs. Keep logic to a minimum; de
 2. Install Nuxt UI (`npx nuxt module add @nuxt/ui`)
 3. Configure `nuxt.config.ts` with `@nuxt/ui` module
 4. Set `runtimeConfig.public.lmStudioBaseUrl` default `http://localhost:1234`
-5. Add `.env` with `NUXT_PUBLIC_LM_STUDIO_BASE_URL`
-6. **Install Vitest** — `npm i -D vitest @vue/test-utils @nuxt/test-utils happy-dom`
-7. Add `vitest.config.ts` and `nuxt.config.ts` `vitest` integration
+5. **Install Vitest** — `npm i -D vitest @vue/test-utils @nuxt/test-utils happy-dom`
+6. Add `vitest.config.ts` and `nuxt.config.ts` `vitest` integration
 
 ### Phase 2 — Types
 
@@ -185,7 +184,6 @@ frontnx/
 ├── nuxt.config.ts
 ├── package.json
 ├── plan.md
-├── .env
 ├── .gitignore
 ├── vitest.config.ts
 ├── types/
