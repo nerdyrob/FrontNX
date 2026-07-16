@@ -56,9 +56,10 @@ export function useChatState() {
       createdAt: '',
     }
     messages.value.push(assistantMsg)
+    const startedAt = Date.now()
 
     try {
-      const fullContent = await lmStudio.sendChat(
+      const response = await lmStudio.sendChat(
         messages.value.slice(0, -1),
         selectedModel.value,
         (delta) => {
@@ -77,7 +78,15 @@ export function useChatState() {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
-        last.content = fullContent
+        last.content = response.content
+        const processingTimeMs = response.metrics?.processingTimeMs ?? Math.max(0, Date.now() - startedAt)
+        const tokensUsed = response.metrics?.tokensUsed ?? 0
+        const tokensPerSecond = response.metrics?.tokensPerSecond ?? (tokensUsed > 0 && processingTimeMs > 0 ? Number((tokensUsed / (processingTimeMs / 1000)).toFixed(2)) : 0)
+        last.metrics = {
+          processingTimeMs,
+          tokensUsed,
+          tokensPerSecond,
+        }
       }
 
       await saveSession()

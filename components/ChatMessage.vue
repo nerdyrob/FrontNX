@@ -36,6 +36,11 @@
           <MarkdownRenderer v-if="message.content" :content="message.content" />
           <span v-else-if="showProgressDots" class="text-muted italic">Thinking…</span>
         </div>
+        <div v-if="message.role === 'assistant' && message.metrics && !showProgressDots" class="pl-9 mt-2 text-[11px] text-dimmed flex flex-wrap gap-x-3 gap-y-1">
+          <span>{{ processingTimeLabel }}</span>
+          <span>Tokens used: {{ tokensUsedLabel }}</span>
+          <span>Tokens/sec: {{ tokensPerSecondLabel }}</span>
+        </div>
       </div>
     </div>
 
@@ -81,5 +86,22 @@ const timestamp = computed(() => {
 
 const showProgressDots = computed(() => {
   return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.createdAt)
+})
+
+const processingTimeLabel = computed(() => {
+  const ms = props.message.metrics?.processingTimeMs ?? 0
+  if (!ms) return 'Processing time: -'
+  if (ms < 1000) return `Processing time: ${ms} ms`
+  return `Processing time: ${(ms / 1000).toFixed(2)} s`
+})
+
+const tokensUsedLabel = computed(() => {
+  const tokens = props.message.metrics?.tokensUsed ?? 0
+  return tokens > 0 ? String(tokens) : '-'
+})
+
+const tokensPerSecondLabel = computed(() => {
+  const tokensPerSecond = props.message.metrics?.tokensPerSecond ?? 0
+  return tokensPerSecond > 0 ? tokensPerSecond.toFixed(2) : '-'
 })
 </script>

@@ -4,7 +4,9 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const base = config.public.lmStudioBaseUrl.replace(/\/+$/, '')
   const path = getRequestURL(event).pathname.replace(/^\/api\/lm\//, '')
-  const target = `${base}/${path}`
+  const target = path.startsWith('v0/')
+    ? `${base}/api/${path}`
+    : `${base}/${path}`
 
   const method = event.method
 

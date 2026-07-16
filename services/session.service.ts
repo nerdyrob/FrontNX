@@ -1,5 +1,24 @@
 import type { ChatMessage, SessionMeta } from '../types'
 
+function formatMetrics(metrics: ChatMessage['metrics']): string {
+  if (!metrics) return ''
+  return `\n<!-- metrics: processing_time_ms=${metrics.processingTimeMs} tokens_used=${metrics.tokensUsed} tokens_per_second=${metrics.tokensPerSecond} -->`
+}
+
+function parseMetricsComment(content: string): { content: string; metrics?: ChatMessage['metrics'] } {
+  const match = content.match(/\n?<!-- metrics: processing_time_ms=(\d+) tokens_used=(\d+) tokens_per_second=([\d.]+) -->\s*$/)
+  if (!match || match.index === undefined) return { content }
+
+  return {
+    content: content.slice(0, match.index).trimEnd(),
+    metrics: {
+      processingTimeMs: Number(match[1]),
+      tokensUsed: Number(match[2]),
+      tokensPerSecond: Number(match[3]),
+    },
+  }
+}
+
 function uid(): string {
   if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -23,7 +42,7 @@ export class SessionService {
       .map((msg) => {
         const base = msg.role === 'assistant' ? 'Assistant' : 'User'
         const label = `${base}${msg.model ? ` (${msg.model})` : ''}`
-        return `## ${msg.createdAt} — ${label}\n\n${msg.content}\n`
+        return `## ${msg.createdAt} — ${label}\n\n${msg.content}${msg.role === 'assistant' ? formatMetrics(msg.metrics) : ''}\n`
       })
       .join('\n')
 
@@ -61,7 +80,10 @@ export class SessionService {
 
       if (headingMatch) {
         if (currentMsg) {
-          currentMsg.content = bodyLines.join('\n').trim()
+          const rawContent = bodyLines.join('\n').trim()
+          const parsed = currentMsg.role === 'assistant' ? parseMetricsComment(rawContent) : { content: rawContent }
+          currentMsg.content = parsed.content
+          if (parsed.metrics) currentMsg.metrics = parsed.metrics
           messages.push(currentMsg as ChatMessage)
           bodyLines.length = 0
         }
@@ -83,7 +105,10 @@ export class SessionService {
     }
 
     if (currentMsg) {
-      currentMsg.content = bodyLines.join('\n').trim()
+      const rawContent = bodyLines.join('\n').trim()
+      const parsed = currentMsg.role === 'assistant' ? parseMetricsComment(rawContent) : { content: rawContent }
+      currentMsg.content = parsed.content
+      if (parsed.metrics) currentMsg.metrics = parsed.metrics
       messages.push(currentMsg as ChatMessage)
     }
 

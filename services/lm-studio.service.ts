@@ -1,8 +1,14 @@
 import type { ModelOption, ChatMessage } from '../types'
 
-interface StreamChunk {
+export interface ChatResponseMetrics {
+  processingTimeMs: number
+  tokensUsed: number
+  tokensPerSecond: number
+}
+
+interface ChatResponse {
   content: string
-  finished: boolean
+  metrics?: ChatResponseMetrics
 }
 
 export class LmStudioService {
@@ -12,8 +18,40 @@ export class LmStudioService {
     return { 'Content-Type': 'application/json' }
   }
 
+  private extractContent(json: any): string {
+    const choiceContent = json?.choices?.[0]?.message?.content
+    if (typeof choiceContent === 'string' && choiceContent.length > 0) return choiceContent
+
+    const choiceText = json?.choices?.[0]?.text
+    if (typeof choiceText === 'string' && choiceText.length > 0) return choiceText
+
+    if (Array.isArray(json?.output)) {
+      const messageItem = json.output.find((item: any) => item?.type === 'message' && typeof item?.content === 'string')
+      if (messageItem?.content) return messageItem.content
+    }
+
+    if (typeof json?.content === 'string') return json.content
+
+    return ''
+  }
+
+  private extractMetrics(json: any): ChatResponseMetrics {
+    const stats = json?.stats ?? json?.result?.stats ?? {}
+    const tokensUsed = stats.total_output_tokens ?? stats.output_tokens ?? json?.usage?.completion_tokens ?? json?.usage?.total_tokens ?? 0
+    const tokensPerSecond = stats.tokens_per_second ?? 0
+    const generationSeconds = stats.generation_time ?? (
+      tokensPerSecond > 0 && tokensUsed > 0 ? tokensUsed / tokensPerSecond : 0
+    )
+
+    return {
+      processingTimeMs: generationSeconds > 0 ? Math.round(generationSeconds * 1000) : 0,
+      tokensUsed,
+      tokensPerSecond,
+    }
+  }
+
   async getModels(): Promise<ModelOption[]> {
-    const res = await fetch(`${this.baseUrl}/v1/models`, {
+    const res = await fetch(`${this.baseUrl}/v0/models`, {
       headers: this.headers,
     })
     if (!res.ok) {
@@ -28,14 +66,14 @@ export class LmStudioService {
     model: string,
     onChunk?: (delta: string) => void,
     signal?: AbortSignal,
-  ): Promise<string> {
+  ): Promise<ChatResponse> {
     const body = JSON.stringify({
       model,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
-      stream: true,
+      stream: false,
     })
 
-    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+    const res = await fetch(`${this.baseUrl}/v0/chat/completions`, {
       method: 'POST',
       headers: this.headers,
       body,
@@ -46,39 +84,11 @@ export class LmStudioService {
       throw new Error(`Chat request failed: ${res.status} ${res.statusText}`)
     }
 
-    const reader = res.body?.getReader()
-    if (!reader) throw new Error('Response body is not readable')
+    const json = await res.json() as any
 
-    const decoder = new TextDecoder()
-    let fullContent = ''
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed === 'data: [DONE]') continue
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const parsed = JSON.parse(trimmed.slice(6))
-            const delta = parsed.choices?.[0]?.delta?.content ?? ''
-            if (delta) {
-              fullContent += delta
-              onChunk?.(delta)
-            }
-          } catch {
-            // skip malformed JSON chunks
-          }
-        }
-      }
+    return {
+      content: this.extractContent(json),
+      metrics: this.extractMetrics(json),
     }
-
-    return fullContent
   }
 }

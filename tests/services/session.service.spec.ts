@@ -36,6 +36,11 @@ describe('SessionService', () => {
         content: 'Hello!',
         model: 'llama-3.2-3b',
         createdAt: '2026-07-13T12:00:05Z',
+        metrics: {
+          processingTimeMs: 1234,
+          tokensUsed: 42,
+          tokensPerSecond: 33.9,
+        },
       },
     ]
 
@@ -49,5 +54,8 @@ describe('SessionService', () => {
     expect(parsed.messages[1].content).toBe('Hello!')
     expect(parsed.messages[1].role).toBe('assistant')
     expect(parsed.messages[1].model).toBe('llama-3.2-3b')
+    expect(parsed.messages[1].metrics?.processingTimeMs).toBe(1234)
+    expect(parsed.messages[1].metrics?.tokensUsed).toBe(42)
+    expect(parsed.messages[1].metrics?.tokensPerSecond).toBe(33.9)
   })
 })

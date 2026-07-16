@@ -4,6 +4,13 @@ export interface ChatMessage {
   content: string
   model?: string
   createdAt: string
+  metrics?: MessageMetrics
+}
+
+export interface MessageMetrics {
+  processingTimeMs: number
+  tokensUsed: number
+  tokensPerSecond: number
 }
 
 export interface SessionMeta {
