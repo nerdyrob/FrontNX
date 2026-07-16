@@ -103,11 +103,13 @@
 </template>
 
 <script setup lang="ts">
+import type { SessionListItem } from '~/repositories/session.repository'
+
 const chat = useChatState()
 const messagesContainer = ref<HTMLElement | null>(null)
 const sidebarOpen = ref(true)
 
-const sessions = ref<{ id: string; path: string; title: string; preview: string; timestamp: string }[]>([])
+const sessions = ref<SessionListItem[]>([])
 const currentSessionId = ref<string | null>(null)
 
 function handleSend(text: string) {

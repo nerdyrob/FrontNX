@@ -30,8 +30,9 @@
         @click="$emit('select', session.id)"
       >
         <div class="truncate font-medium leading-tight">{{ session.preview || session.title }}</div>
-        <div class="mt-1 flex items-center justify-between gap-2">
-          <div class="text-[10px] text-dimmed truncate">{{ session.timestamp }}</div>
+        <div class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
+          <div class="truncate">{{ formatTimestamp(session.timestamp) }}</div>
+          <div class="ml-auto whitespace-nowrap text-right">{{ formatTotals(session.totalProcessingTimeMs, session.totalTokens) }}</div>
           <UButton
             icon="i-lucide-trash-2"
             size="2xs"
@@ -51,10 +52,23 @@
 
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
-  sessions: { id: string; title: string; preview: string; timestamp: string }[]
+  sessions: { id: string; title: string; preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number }[]
   currentSessionId: string | null
   open?: boolean
 }>(), { open: true })
+
+function formatTotals(totalProcessingTimeMs: number, totalTokens: number): string {
+  const seconds = totalProcessingTimeMs / 1000
+  return `${totalTokens} tps, ${seconds.toFixed(1)}s`
+}
+
+function formatTimestamp(value: string): string {
+  if (/^\d{8}-\d{6}$/.test(value)) return value
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
 
 defineEmits<{
   select: [id: string]

@@ -3,6 +3,7 @@ import { readFile, writeFile, appendFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
+import { SessionService } from '../services/session.service'
 
 function toShortTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -12,9 +13,11 @@ function toShortTimestamp(iso: string): string {
 
 export class SessionFsRepository implements ISessionRepository {
   private baseDir: string
+  private sessionService: SessionService
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir ?? join(process.cwd(), 'chat-sessions')
+    this.sessionService = new SessionService()
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true })
     }
@@ -75,48 +78,28 @@ export class SessionFsRepository implements ISessionRepository {
     return files.map((f) => {
       const id = f.replace(/\.md$/, '')
       const path = join(this.baseDir, f)
-      const { preview, timestamp } = this.extractPreview(path)
-      return { id, path, title: id, preview, timestamp }
+      const { preview, timestamp, totalTokens, totalProcessingTimeMs } = this.extractPreview(path)
+      return { id, path, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
     }).sort((a, b) => b.id.localeCompare(a.id))
   }
 
-  private extractPreview(filePath: string): { preview: string; timestamp: string } {
+  private extractPreview(filePath: string): { preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number } {
     try {
       const content = readFileSync(filePath, 'utf-8')
-      const lines = content.split('\n')
-      let timestamp = ''
-      let inFrontMatter = false
-      let i = 0
+      const { meta, messages } = this.sessionService.parseMarkdown(content)
+      const firstUserMessage = messages.find((message) => message.role === 'user')
+      const preview = firstUserMessage?.content.replace(/\s+/g, ' ').trim().slice(0, 120) || '(empty)'
+      const totalTokens = messages.reduce((sum, message) => sum + (message.metrics?.tokensUsed ?? 0), 0)
+      const totalProcessingTimeMs = messages.reduce((sum, message) => sum + (message.metrics?.processingTimeMs ?? 0), 0)
 
-      if (lines[0]?.trim() === '---') {
-        inFrontMatter = true
-        i = 1
-        while (i < lines.length && lines[i]?.trim() !== '---') {
-          if (lines[i].startsWith('created:')) {
-            timestamp = lines[i].slice(8).trim()
-          }
-          i++
-        }
-        i++
+      return {
+        preview,
+        timestamp: meta.created,
+        totalTokens,
+        totalProcessingTimeMs,
       }
-
-      for (; i < lines.length; i++) {
-        const match = lines[i].match(/^## .+ — User(?: \(.+\))?$/)
-        if (match) {
-          i++
-          const body: string[] = []
-          while (i < lines.length && !lines[i].startsWith('## ')) {
-            if (lines[i].trim()) body.push(lines[i].trim())
-            i++
-          }
-          const preview = body.join(' ').slice(0, 120)
-          return { preview: preview || '(empty)', timestamp }
-        }
-      }
-
-      return { preview: '(empty)', timestamp }
     } catch {
-      return { preview: '', timestamp: '' }
+      return { preview: '', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0 }
     }
   }
 

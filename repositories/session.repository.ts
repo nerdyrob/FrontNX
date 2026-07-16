@@ -6,6 +6,8 @@ export interface SessionListItem {
   title: string
   preview: string
   timestamp: string
+  totalTokens: number
+  totalProcessingTimeMs: number
 }
 
 export interface ISessionRepository {
