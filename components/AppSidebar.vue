@@ -1,7 +1,7 @@
 <template>
   <aside
     :class="[
-      'flex flex-col border-r border-default bg-elevated shrink-0 transition-all duration-200',
+      'flex flex-col border-r border-default bg-primary/10 shrink-0 transition-all duration-200',
       'lg:relative lg:translate-x-0',
       open ? 'w-64' : 'w-0 lg:w-0 overflow-hidden',
     ]"
