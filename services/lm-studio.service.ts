@@ -85,11 +85,13 @@ export class LmStudioService {
     model: string,
     onChunk?: (delta: string) => void,
     signal?: AbortSignal,
+    reasoning?: boolean,
   ): Promise<ChatResponse> {
     const body = JSON.stringify({
       model,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       stream: true,
+      ...(reasoning ? { reasoning: true } : {}),
     })
 
     const res = await fetch(`${this.baseUrl}/v0/chat/completions`, {

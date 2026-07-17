@@ -13,6 +13,20 @@
           @keydown.enter.exact.prevent="send"
         />
         <div class="flex items-center gap-1 shrink-0">
+          <button
+            v-if="thinkingSupported"
+            class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+            :class="[
+              thinking ? 'bg-primary/15 text-primary' : 'text-muted hover:text-foreground',
+              streaming && 'opacity-50 cursor-not-allowed',
+            ]"
+            :title="thinking ? 'Thinking enabled' : 'Enable thinking'"
+            :disabled="streaming"
+            @click="$emit('update:thinking', !thinking)"
+          >
+            <UIcon name="i-lucide-brain" class="w-3.5 h-3.5" />
+            <span>Think</span>
+          </button>
           <UButton
             v-if="!streaming"
             icon="i-lucide-arrow-up"
@@ -46,11 +60,14 @@
 const props = defineProps<{
   streaming: boolean
   disabled?: boolean
+  thinking?: boolean
+  thinkingSupported?: boolean
 }>()
 
 const emit = defineEmits<{
   send: [text: string]
   stop: []
+  'update:thinking': [value: boolean]
 }>()
 
 const text = ref('')

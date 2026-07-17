@@ -105,7 +105,10 @@
       <ChatInput class="no-print"
         :streaming="chat.isStreaming.value"
         :disabled="!chat.selectedModel.value || chat.availableModels.value.length === 0"
+        :thinking="chat.thinkingEnabled.value"
+        :thinking-supported="chat.thinkingSupported.value"
         @send="handleSend"
+        @update:thinking="chat.thinkingEnabled.value = $event"
       />
     </div>
   </div>

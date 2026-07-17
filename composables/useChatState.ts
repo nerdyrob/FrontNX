@@ -30,6 +30,11 @@ export function useChatState() {
   const currentSessionPath = ref<string | null>(null)
   const loadError = ref<string | null>(null)
   const sessionRefreshTick = ref(0)
+  const thinkingEnabled = ref(false)
+
+  const thinkingSupported = computed(() => !!selectedModel.value)
+
+  watch(selectedModel, () => { thinkingEnabled.value = false })
 
   async function exportToPDF() {
     if (!currentSessionPath.value) return
@@ -104,6 +109,7 @@ export function useChatState() {
           }
         },
         requestController.signal,
+        thinkingEnabled.value,
       )
 
       const last = messages.value[messages.value.length - 1]
@@ -244,6 +250,8 @@ export function useChatState() {
     currentSessionPath,
     loadError,
     sessionRefreshTick,
+    thinkingEnabled,
+    thinkingSupported,
     loadModels,
     sendMessage,
     loadSession,
