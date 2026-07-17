@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-dvh">
     <!-- Sidebar -->
-    <AppSidebar
+    <AppSidebar class="no-print"
       :sessions="sessions"
       :current-session-id="currentSessionId"
       :open="sidebarOpen"
@@ -13,7 +13,7 @@
     <!-- Main chat area -->
     <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-[var(--ui-bg-elevated)]/40">
       <!-- Header -->
-      <header class="flex items-center justify-between px-6 h-[57px] border-b border-default shrink-0 bg-[var(--ui-bg)]/80 backdrop-blur-sm">
+      <header class="no-print flex items-center justify-between px-6 h-[57px] border-b border-default shrink-0 bg-[var(--ui-bg)]/80 backdrop-blur-sm">
         <div class="flex items-center gap-4">
           <UButton
             icon="i-lucide-panel-left-close"
@@ -102,7 +102,7 @@
       </main>
 
       <!-- Input area -->
-      <ChatInput
+      <ChatInput class="no-print"
         :streaming="chat.isStreaming.value"
         :disabled="!chat.selectedModel.value || chat.availableModels.value.length === 0"
         @send="handleSend"

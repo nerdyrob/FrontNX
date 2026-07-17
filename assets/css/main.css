@@ -145,3 +145,21 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ui-border);
 }
+
+@media print {
+  @page { size: A4; margin: 20mm; }
+
+  .no-print { display: none !important; }
+
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .flex-1 > main {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  ::-webkit-scrollbar { display: none; }
+
+  * { backdrop-filter: none !important; }
+}
