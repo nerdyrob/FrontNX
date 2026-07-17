@@ -8,7 +8,7 @@
     :style="open ? '' : 'width: 0'"
   >
     <div class="flex items-center justify-between px-4 h-[57px] border-b border-default shrink-0">
-      <span class="text-sm font-semibold">Sessions</span>
+      <span class="text-sm font-semibold text-dimmed">Sessions</span>
       <UButton
         icon="i-lucide-plus"
         size="2xs"

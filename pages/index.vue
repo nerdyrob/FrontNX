@@ -23,7 +23,10 @@
             class="lg:hidden"
             @click="sidebarOpen = !sidebarOpen"
           />
-          <span class="font-bold text-xl text-primary">Frontnx</span>
+          <div class="flex items-center gap-1">
+            <span class="font-bold text-xl text-primary">Frontnx</span>
+            <UIcon name="i-lucide-bot-message-square" class="w-5 h-5 text-primary" />
+          </div>
         </div>
 
         <div class="flex items-center gap-3">
@@ -54,8 +57,8 @@
             class="flex flex-col items-center justify-center h-full min-h-[60vh]"
           >
             <div class="text-center space-y-5 max-w-md">
-              <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary via-primary/70 to-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
-                <UIcon name="i-lucide-sparkles" class="w-8 h-8 text-white" />
+              <div class="w-16 h-16 mx-auto rounded-2xl bg-primary/15 flex items-center justify-center">
+                <UIcon name="i-lucide-bot-message-square" class="w-8 h-8 text-primary" />
               </div>
               <div v-if="chat.loadError.value" class="space-y-2">
                 <h2 class="text-lg font-semibold">Connection Error</h2>
