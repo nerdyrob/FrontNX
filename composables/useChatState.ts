@@ -17,111 +17,6 @@ function estimateTokens(text: string): number {
   return Math.max(1, Math.round(trimmed.length / 4))
 }
 
-async function exportToPDF(currentSessionPath: string | null) {
-  if (!currentSessionPath) return
-
-  try {
-    const sessionRes = await $fetch<{ content: string }>('/api/session/read', {
-      params: { path: currentSessionPath },
-    })
-    const content = sessionRes.content
-
-    const { default: PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
-    
-    const pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([595.28, 841.89])
-
-    const { width, height } = page.getSize()
-
-    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-    const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
-
-    const lines = content.split('\n')
-    let y = height - 50
-    const lineHeight = 20
-
-    lines.forEach((line) => {
-      if (line.startsWith('---')) {
-        const titleText = line.replace(/---/g, '').trim()
-        y -= lineHeight * 1.5
-        page.drawText(titleText, {
-          x: 50,
-          y: y,
-          size: 24,
-          font: titleFont,
-          color: rgb(0.2, 0.2, 0.5),
-        })
-        y -= lineHeight
-      } else if (line.startsWith('##')) {
-        const text = line.replace(/^#+\s*/, '')
-        y -= lineHeight
-        page.drawText(text, {
-          x: 50,
-          y: y,
-          size: 14,
-          font: bodyFont,
-          color: rgb(0.3, 0.3, 0.3),
-        })
-        y -= lineHeight * 0.5
-      } else if (line.includes('-->')) {
-        return
-      } else if (line.trim()) {
-        const words = line.split(' ')
-        let lineText = ''
-        
-        words.forEach((word) => {
-          const testText = lineText + (lineText ? ' ' : '') + word
-          const textWidth = bodyFont.widthOfTextAtSize(testText, 12)
-          
-          if (textWidth > width - 100) {
-            page.drawText(lineText, {
-              x: 50,
-              y: y,
-              size: 12,
-              font: bodyFont,
-              color: rgb(0, 0, 0),
-            })
-            y -= lineHeight
-            lineText = word
-          } else {
-            lineText = testText
-          }
-        })
-        
-        if (lineText) {
-          page.drawText(lineText, {
-            x: 50,
-            y: y,
-            size: 12,
-            font: bodyFont,
-            color: rgb(0, 0, 0),
-          })
-          y -= lineHeight
-        }
-        y -= lineHeight * 0.5
-      }
-    })
-
-    const pdfBytes = await pdfDoc.save()
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const fileName = currentSessionPath.replace(/\\/g, '/')
-      .split('/')
-      .pop()
-      ?.replace(/\.md$/, '.pdf') || 'chat-session.pdf'
-    a.download = `session-${fileName}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('Failed to export to PDF:', error)
-  }
-}
-
 export function useChatState() {
   const config = useRuntimeConfig()
   const lmStudio = new LmStudioService('/api/lm')
@@ -134,6 +29,111 @@ export function useChatState() {
   const currentSessionPath = ref<string | null>(null)
   const loadError = ref<string | null>(null)
   const sessionRefreshTick = ref(0)
+
+  async function exportToPDF() {
+    if (!currentSessionPath.value) return
+
+    try {
+      const sessionRes = await $fetch<{ content: string }>('/api/session/read', {
+        params: { path: currentSessionPath.value },
+      })
+      const content = sessionRes.content
+
+      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+      
+      const pdfDoc = await PDFDocument.create()
+      const page = pdfDoc.addPage([595.28, 841.89])
+
+      const { width, height } = page.getSize()
+
+      const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+      const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+
+      const lines = content.split('\n')
+      let y = height - 50
+      const lineHeight = 20
+
+      lines.forEach((line) => {
+        if (line.startsWith('---')) {
+          const titleText = line.replace(/---/g, '').trim()
+          y -= lineHeight * 1.5
+          page.drawText(titleText, {
+            x: 50,
+            y: y,
+            size: 24,
+            font: titleFont,
+            color: rgb(0.2, 0.2, 0.5),
+          })
+          y -= lineHeight
+        } else if (line.startsWith('##')) {
+          const text = line.replace(/^#+\s*/, '')
+          y -= lineHeight
+          page.drawText(text, {
+            x: 50,
+            y: y,
+            size: 14,
+            font: bodyFont,
+            color: rgb(0.3, 0.3, 0.3),
+          })
+          y -= lineHeight * 0.5
+        } else if (line.includes('-->')) {
+          return
+        } else if (line.trim()) {
+          const words = line.split(' ')
+          let lineText = ''
+          
+          words.forEach((word) => {
+            const testText = lineText + (lineText ? ' ' : '') + word
+            const textWidth = bodyFont.widthOfTextAtSize(testText, 12)
+            
+            if (textWidth > width - 100) {
+              page.drawText(lineText, {
+                x: 50,
+                y: y,
+                size: 12,
+                font: bodyFont,
+                color: rgb(0, 0, 0),
+              })
+              y -= lineHeight
+              lineText = word
+            } else {
+              lineText = testText
+            }
+          })
+          
+          if (lineText) {
+            page.drawText(lineText, {
+              x: 50,
+              y: y,
+              size: 12,
+              font: bodyFont,
+              color: rgb(0, 0, 0),
+            })
+            y -= lineHeight
+          }
+          y -= lineHeight * 0.5
+        }
+      })
+
+      const pdfBytes = await pdfDoc.save()
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const fileName = currentSessionPath.value.replace(/\\/g, '/')
+        .split('/')
+        .pop()
+        ?.replace(/\.md$/, '.pdf') || 'chat-session.pdf'
+      a.download = `session-${fileName}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to export to PDF:', error)
+    }
+  }
 
   async function loadModels() {
     loadError.value = null
@@ -343,6 +343,6 @@ export function useChatState() {
     newSession,
     deleteMessage,
     deleteRange,
-    exportToPDF: () => exportToPDF(currentSessionPath.value),
+    exportToPDF,
   }
 }
