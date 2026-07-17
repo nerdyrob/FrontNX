@@ -17,6 +17,7 @@
             color="neutral"
             variant="ghost"
             class="text-dimmed hover:text-highlighted active:text-highlighted"
+            title="Delete message"
             @click="$emit('delete', index)"
           />
           <UButton
@@ -26,6 +27,7 @@
             color="neutral"
             variant="ghost"
             class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
+            :title="copied ? 'Copied' : 'Copy'"
             @click="copyMessage"
           />
         </div>
@@ -56,6 +58,7 @@
             color="neutral"
             variant="ghost"
             class="text-dimmed hover:text-highlighted active:text-highlighted"
+            title="Delete message"
             @click="$emit('delete', index)"
           />
           <UButton
@@ -65,6 +68,7 @@
             color="neutral"
             variant="ghost"
             class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
+            :title="copied ? 'Copied' : 'Copy'"
             @click="copyMessage"
           />
         </div>

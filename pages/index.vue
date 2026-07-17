@@ -43,7 +43,6 @@
             v-if="chat.availableModels.value.length > 0"
             v-model="chat.selectedModel.value"
             :models="chat.availableModels.value"
-            @refresh="chat.loadModels()"
           />
         </div>
       </header>

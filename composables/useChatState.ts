@@ -34,7 +34,9 @@ export function useChatState() {
 
   const thinkingSupported = computed(() => !!selectedModel.value)
 
-  watch(selectedModel, () => { thinkingEnabled.value = false })
+  watch(selectedModel, (_new, old) => {
+    if (old && _new !== old) thinkingEnabled.value = true
+  })
 
   async function exportToPDF() {
     if (!currentSessionPath.value) return

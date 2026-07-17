@@ -14,6 +14,7 @@
         size="2xs"
         color="neutral"
         variant="ghost"
+        title="New session"
         @click="$emit('new')"
       />
     </div>
