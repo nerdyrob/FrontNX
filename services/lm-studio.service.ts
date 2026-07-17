@@ -9,6 +9,8 @@ export interface ChatResponseMetrics {
 interface ChatResponse {
   content: string
   metrics?: ChatResponseMetrics
+  status: 'complete' | 'incomplete'
+  stopReason?: string
 }
 
 export class LmStudioService {
@@ -93,6 +95,10 @@ export class LmStudioService {
     let eventData: string[] = []
     let fullContent = ''
     let metrics: ChatResponseMetrics | undefined
+    let sawChatEnd = false
+    let sawDone = false
+    let sawFinishReason = false
+    let stopReason: string | undefined
 
     const extractDelta = (payload: any, currentEventType: string): string => {
       if (currentEventType === 'message.delta' && typeof payload?.content === 'string') {
@@ -107,13 +113,18 @@ export class LmStudioService {
 
     const applyMetrics = (payload: any, currentEventType: string) => {
       if (currentEventType === 'chat.end') {
+        sawChatEnd = true
         const extracted = this.extractMetrics(payload?.result ?? payload)
         metrics = extracted
+        const reason = payload?.result?.stats?.stop_reason ?? payload?.stats?.stop_reason
+        if (typeof reason === 'string' && reason.length > 0) stopReason = reason
         return
       }
 
       if (payload?.stats || payload?.usage || payload?.result?.stats) {
         metrics = this.extractMetrics(payload)
+        const reason = payload?.stats?.stop_reason ?? payload?.result?.stats?.stop_reason
+        if (typeof reason === 'string' && reason.length > 0) stopReason = reason
       }
     }
 
@@ -129,6 +140,11 @@ export class LmStudioService {
       if (!rawPayload || rawPayload === '[DONE]') return
       try {
         const payload = JSON.parse(rawPayload)
+        const finishReason = payload?.choices?.[0]?.finish_reason
+        if (typeof finishReason === 'string' && finishReason.length > 0) {
+          sawFinishReason = true
+          stopReason = finishReason
+        }
         const delta = extractDelta(payload, currentEventType)
         if (delta) {
           fullContent += delta
@@ -177,6 +193,10 @@ export class LmStudioService {
           const payload = trimmed.slice(6)
           if (!eventType) {
             // OpenAI-style SSE often omits explicit event names; handle each data frame directly.
+            if (payload === '[DONE]') {
+              sawDone = true
+              continue
+            }
             processPayload(payload, '')
           } else {
             eventData.push(payload)
@@ -196,9 +216,15 @@ export class LmStudioService {
       }
     }
 
+    const status = stopReason === 'userStopped'
+      ? 'incomplete'
+      : (sawChatEnd || sawDone || sawFinishReason ? 'complete' : 'incomplete')
+
     return {
       content: fullContent,
       metrics,
+      status,
+      stopReason,
     }
   }
 }

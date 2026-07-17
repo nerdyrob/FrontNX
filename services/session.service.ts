@@ -5,6 +5,11 @@ function formatMetrics(metrics: ChatMessage['metrics']): string {
   return `\n<!-- metrics: processing_time_ms=${metrics.processingTimeMs} tokens_used=${metrics.tokensUsed} tokens_per_second=${metrics.tokensPerSecond} -->`
 }
 
+function formatResponseState(status?: ChatMessage['responseStatus'], stopReason?: ChatMessage['stopReason']): string {
+  if (!status) return ''
+  return `\n<!-- response: status=${status}${stopReason ? ` stop_reason=${stopReason}` : ''} -->`
+}
+
 function parseMetricsComment(content: string): { content: string; metrics?: ChatMessage['metrics'] } {
   const match = content.match(/\n?<!-- metrics: processing_time_ms=(\d+) tokens_used=(\d+) tokens_per_second=([\d.]+) -->\s*$/)
   if (!match || match.index === undefined) return { content }
@@ -16,6 +21,55 @@ function parseMetricsComment(content: string): { content: string; metrics?: Chat
       tokensUsed: Number(match[2]),
       tokensPerSecond: Number(match[3]),
     },
+  }
+}
+
+function parseResponseStateComment(content: string): { content: string; responseStatus?: ChatMessage['responseStatus']; stopReason?: string } {
+  const match = content.match(/\n?<!-- response: status=(complete|incomplete)(?: stop_reason=([^>\s]+))? -->\s*$/)
+  if (!match || match.index === undefined) return { content }
+
+  return {
+    content: content.slice(0, match.index).trimEnd(),
+    responseStatus: match[1] as ChatMessage['responseStatus'],
+    stopReason: match[2],
+  }
+}
+
+function parseAssistantMetadata(content: string): {
+  content: string
+  metrics?: ChatMessage['metrics']
+  responseStatus?: ChatMessage['responseStatus']
+  stopReason?: string
+} {
+  let remaining = content
+  let metrics: ChatMessage['metrics'] | undefined
+  let responseStatus: ChatMessage['responseStatus'] | undefined
+  let stopReason: string | undefined
+
+  while (true) {
+    const parsedState = parseResponseStateComment(remaining)
+    if (parsedState.responseStatus) {
+      remaining = parsedState.content
+      responseStatus = parsedState.responseStatus
+      stopReason = parsedState.stopReason
+      continue
+    }
+
+    const parsedMetrics = parseMetricsComment(remaining)
+    if (parsedMetrics.metrics) {
+      remaining = parsedMetrics.content
+      metrics = parsedMetrics.metrics
+      continue
+    }
+
+    break
+  }
+
+  return {
+    content: remaining,
+    metrics,
+    responseStatus,
+    stopReason,
   }
 }
 
@@ -42,7 +96,10 @@ export class SessionService {
       .map((msg) => {
         const base = msg.role === 'assistant' ? 'Assistant' : 'User'
         const label = `${base}${msg.model ? ` (${msg.model})` : ''}`
-        return `## ${msg.createdAt} — ${label}\n\n${msg.content}${msg.role === 'assistant' ? formatMetrics(msg.metrics) : ''}\n`
+        const assistantMeta = msg.role === 'assistant'
+          ? `${formatMetrics(msg.metrics)}${formatResponseState(msg.responseStatus, msg.stopReason)}`
+          : ''
+        return `## ${msg.createdAt} — ${label}\n\n${msg.content}${assistantMeta}\n`
       })
       .join('\n')
 
@@ -81,9 +138,13 @@ export class SessionService {
       if (headingMatch) {
         if (currentMsg) {
           const rawContent = bodyLines.join('\n').trim()
-          const parsed = currentMsg.role === 'assistant' ? parseMetricsComment(rawContent) : { content: rawContent }
+          const parsed = currentMsg.role === 'assistant'
+            ? parseAssistantMetadata(rawContent)
+            : { content: rawContent }
           currentMsg.content = parsed.content
           if (parsed.metrics) currentMsg.metrics = parsed.metrics
+          if (parsed.responseStatus) currentMsg.responseStatus = parsed.responseStatus
+          if (parsed.stopReason) currentMsg.stopReason = parsed.stopReason
           messages.push(currentMsg as ChatMessage)
           bodyLines.length = 0
         }
@@ -106,9 +167,13 @@ export class SessionService {
 
     if (currentMsg) {
       const rawContent = bodyLines.join('\n').trim()
-      const parsed = currentMsg.role === 'assistant' ? parseMetricsComment(rawContent) : { content: rawContent }
+      const parsed = currentMsg.role === 'assistant'
+        ? parseAssistantMetadata(rawContent)
+        : { content: rawContent }
       currentMsg.content = parsed.content
       if (parsed.metrics) currentMsg.metrics = parsed.metrics
+      if (parsed.responseStatus) currentMsg.responseStatus = parsed.responseStatus
+      if (parsed.stopReason) currentMsg.stopReason = parsed.stopReason
       messages.push(currentMsg as ChatMessage)
     }
 

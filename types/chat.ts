@@ -5,6 +5,8 @@ export interface ChatMessage {
   model?: string
   createdAt: string
   metrics?: MessageMetrics
+  responseStatus?: 'complete' | 'incomplete'
+  stopReason?: string
 }
 
 export interface MessageMetrics {

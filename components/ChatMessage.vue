@@ -54,6 +54,9 @@
           <MarkdownRenderer v-if="message.content" :content="message.content" />
           <span v-else-if="showProgressDots" class="text-muted italic">Thinking…</span>
         </div>
+        <div v-if="showIncompleteNotice" class="pl-9 mt-2 text-[11px] text-amber-600">
+          Response may be incomplete
+        </div>
         <div v-if="message.role === 'assistant' && message.metrics && !showProgressDots" class="pl-9 mt-2 text-[11px] text-dimmed flex flex-wrap gap-x-3 gap-y-1">
           <span>{{ processingTimeLabel }}</span>
           <span>Tokens used: {{ tokensUsedLabel }}</span>
@@ -104,6 +107,14 @@ const timestamp = computed(() => {
 
 const showProgressDots = computed(() => {
   return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.createdAt)
+})
+
+const showIncompleteNotice = computed(() => {
+  return Boolean(
+    props.message.role === 'assistant'
+    && !showProgressDots.value
+    && props.message.responseStatus === 'incomplete',
+  )
 })
 
 const copied = ref(false)

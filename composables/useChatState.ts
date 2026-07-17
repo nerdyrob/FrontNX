@@ -10,6 +10,13 @@ function uid(): string {
   })
 }
 
+function estimateTokens(text: string): number {
+  const trimmed = text.trim()
+  if (!trimmed) return 0
+  // Rough local estimate when provider usage stats are unavailable.
+  return Math.max(1, Math.round(trimmed.length / 4))
+}
+
 export function useChatState() {
   const config = useRuntimeConfig()
   const lmStudio = new LmStudioService('/api/lm')
@@ -85,14 +92,28 @@ export function useChatState() {
           last.createdAt = new Date().toISOString()
         }
         last.content = response.content
-        const processingTimeMs = response.metrics?.processingTimeMs ?? Math.max(0, Date.now() - startedAt)
-        const tokensUsed = response.metrics?.tokensUsed ?? 0
-        const tokensPerSecond = response.metrics?.tokensPerSecond ?? (tokensUsed > 0 && processingTimeMs > 0 ? Number((tokensUsed / (processingTimeMs / 1000)).toFixed(2)) : 0)
+        const elapsedMs = Math.max(0, Date.now() - startedAt)
+        const providerProcessingMs = response.metrics?.processingTimeMs ?? 0
+        const providerTokens = response.metrics?.tokensUsed ?? 0
+        const providerTps = response.metrics?.tokensPerSecond ?? 0
+        const contentForEstimate = (last.content || response.content || '').trim()
+        const fallbackProcessingMs = Math.max(1, elapsedMs)
+        const fallbackTokens = Math.max(1, estimateTokens(contentForEstimate))
+
+        const processingTimeMs = providerProcessingMs > 0 ? providerProcessingMs : fallbackProcessingMs
+        const tokensUsed = providerTokens > 0 ? providerTokens : fallbackTokens
+        const tokensPerSecond = providerTps > 0
+          ? providerTps
+          : (tokensUsed > 0 && processingTimeMs > 0
+              ? Number((tokensUsed / (processingTimeMs / 1000)).toFixed(2))
+              : 0)
         last.metrics = {
           processingTimeMs,
           tokensUsed,
           tokensPerSecond,
         }
+        last.responseStatus = response.status
+        last.stopReason = response.stopReason
       }
 
       await saveSession()
@@ -106,6 +127,8 @@ export function useChatState() {
         last.content = isTimeout
           ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
           : `Error: ${err.message ?? 'Request failed'}`
+        last.responseStatus = 'incomplete'
+        last.stopReason = isTimeout ? 'timeout' : undefined
       }
 
       try {

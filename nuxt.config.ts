@@ -6,6 +6,10 @@ const defaultNitroOutput = isSharedMount ? '/tmp/frontnx-output' : '.output'
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
   css: ['~/assets/css/main.css', '~/assets/css/theme.css'],
+  devServer: {
+    host: '0.0.0.0',
+    port: 3001,
+  },
   vite: {
     plugins: [tailwindcss()],
   },
