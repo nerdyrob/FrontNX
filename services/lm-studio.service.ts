@@ -87,11 +87,20 @@ export class LmStudioService {
     signal?: AbortSignal,
     reasoning?: boolean,
   ): Promise<ChatResponse> {
+    const baseMessages = messages.map(m => ({ role: m.role, content: m.content }))
+
+    const adjustedMessages = reasoning
+      ? baseMessages
+      : [
+          { role: 'system', content: 'You are a direct assistant. Always respond directly without any thinking, reasoning, or step-by-step analysis.' },
+          ...baseMessages,
+        ]
+
     const body = JSON.stringify({
       model,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      messages: adjustedMessages,
       stream: true,
-      ...(reasoning ? { reasoning: true } : {}),
+      reasoning: reasoning ? 'on' : 'off',
     })
 
     const res = await fetch(`${this.baseUrl}/v0/chat/completions`, {
