@@ -4,8 +4,8 @@
     <div v-if="message.role === 'user'" class="flex gap-3">
       <div class="flex-1 max-w-none">
         <div class="flex items-center gap-2.5 mb-2">
-          <div class="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <UIcon name="i-lucide-user" class="w-3.5 h-3.5 text-primary" />
+          <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <UIcon name="i-lucide-user" class="w-3.5 h-3.5 text-white" />
           </div>
           <span class="text-xs font-medium text-highlighted">You</span>
           <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
@@ -30,8 +30,8 @@
     <div v-else class="flex gap-3">
       <div class="flex-1 max-w-none">
         <div class="flex items-center gap-2.5 mb-2">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-            <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5 text-white" />
+          <div class="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+            <UIcon name="i-lucide-bot-message-square" class="w-3.5 h-3.5 text-primary" />
           </div>
           <span class="text-xs font-medium text-highlighted">Assistant</span>
           <span v-if="showProgressDots" class="inline-flex items-end gap-1">
@@ -50,9 +50,9 @@
             @click="copyMessage"
           />
         </div>
-        <details v-if="thinkingContent && !showProgressDots" class="pl-9 mb-2 rounded-lg transition-colors [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60 [&[open]]:p-3">
+        <details v-if="thinkingContent" class="pl-9 mb-2 rounded-lg transition-colors [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60 [&[open]]:p-3" :open="!!streaming">
           <summary class="text-[11px] text-dimmed cursor-pointer select-none hover:text-highlighted">Thought process</summary>
-          <div class="mt-2 text-sm leading-relaxed prose-message">
+          <div class="mt-2 text-sm leading-relaxed prose-message overflow-x-auto max-w-full">
             <MarkdownRenderer :content="thinkingContent" />
           </div>
         </details>
@@ -92,6 +92,7 @@ const props = defineProps<{
   index: number
   isLast?: boolean
   hideActions?: boolean
+  streaming?: boolean
 }>()
 
 defineEmits<{
@@ -125,6 +126,7 @@ const showIncompleteNotice = computed(() => {
 
 const thinkingContent = computed(() => {
   if (props.message.role !== 'assistant') return ''
+  if (props.message.thinking) return props.message.thinking
   const match = props.message.content.match(/<thinking>\s*([\s\S]*?)\s*<\/thinking>/i)
   return match?.[1]?.trim() ?? ''
 })

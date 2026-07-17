@@ -23,15 +23,7 @@
             class="lg:hidden"
             @click="sidebarOpen = !sidebarOpen"
           />
-          <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <UIcon name="i-lucide-sparkles" class="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <span class="font-semibold text-sm">Chat</span>
-              <span class="text-xs text-muted hidden sm:inline ml-1.5">with LM Studio</span>
-            </div>
-          </div>
+          <span class="font-bold text-xl text-primary">Frontnx</span>
         </div>
 
         <div class="flex items-center gap-3">
@@ -96,6 +88,7 @@
             :message="msg"
             :index="i"
             :is-last="i === chat.messages.value.length - 1"
+            :streaming="chat.isStreaming.value && i === chat.messages.value.length - 1"
             @delete="confirmDeleteMessage(i)"
           />
         </div>

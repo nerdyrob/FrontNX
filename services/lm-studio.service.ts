@@ -86,6 +86,7 @@ export class LmStudioService {
     onChunk?: (delta: string) => void,
     signal?: AbortSignal,
     reasoning?: boolean,
+    onReasoning?: (delta: string) => void,
   ): Promise<ChatResponse> {
     const baseMessages = messages.map(m => ({ role: m.role, content: m.content }))
 
@@ -197,6 +198,7 @@ export class LmStudioService {
         const reasoningDelta = extractReasoningDelta(payload, currentEventType)
         if (reasoningDelta) {
           fullReasoning += reasoningDelta
+          onReasoning?.(reasoningDelta)
         }
         maybeApplyFinalContent(payload, currentEventType)
         applyMetrics(payload, currentEventType)

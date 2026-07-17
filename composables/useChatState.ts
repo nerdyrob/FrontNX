@@ -110,6 +110,12 @@ export function useChatState() {
         },
         requestController.signal,
         thinkingEnabled.value,
+        (reasoningDelta) => {
+          const last = messages.value[messages.value.length - 1]
+          if (last.role === 'assistant') {
+            last.thinking = (last.thinking ?? '') + reasoningDelta
+          }
+        },
       )
 
       const last = messages.value[messages.value.length - 1]

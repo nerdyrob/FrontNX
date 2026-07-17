@@ -7,6 +7,7 @@ export interface ChatMessage {
   metrics?: MessageMetrics
   responseStatus?: 'complete' | 'incomplete'
   stopReason?: string
+  thinking?: string
 }
 
 export interface MessageMetrics {
