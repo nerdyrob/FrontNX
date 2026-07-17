@@ -77,7 +77,7 @@ export function useChatState() {
           })
           y -= lineHeight * 0.5
         } else if (line.includes('-->')) {
-          // Skip metrics/comment lines
+          continue
         } else if (line.trim()) {
           const words = line.split(' ')
           let lineText = ''
@@ -161,7 +161,6 @@ export function useChatState() {
     messages.value.push(userMsg)
 
     try {
-      // Persist prompt immediately so a session file exists as soon as the user sends.
       await saveSession()
     } catch (err) {
       console.error('Failed to persist user prompt:', err)
