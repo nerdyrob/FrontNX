@@ -59,4 +59,3 @@ typings/
 .serverless/
 
 .output/
-chat-sessions/
