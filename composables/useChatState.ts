@@ -52,7 +52,8 @@ export function useChatState() {
       let y = height - 50
       const lineHeight = 20
 
-      lines.forEach((line) => {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
         if (line.startsWith('---')) {
           const titleText = line.replace(/---/g, '').trim()
           y -= lineHeight * 1.5
@@ -76,12 +77,12 @@ export function useChatState() {
           })
           y -= lineHeight * 0.5
         } else if (line.includes('-->')) {
-          return
+          // Skip metrics/comment lines
         } else if (line.trim()) {
           const words = line.split(' ')
           let lineText = ''
           
-          words.forEach((word) => {
+          for (const word of words) {
             const testText = lineText + (lineText ? ' ' : '') + word
             const textWidth = bodyFont.widthOfTextAtSize(testText, 12)
             
@@ -98,7 +99,7 @@ export function useChatState() {
             } else {
               lineText = testText
             }
-          })
+          }
           
           if (lineText) {
             page.drawText(lineText, {
@@ -112,7 +113,7 @@ export function useChatState() {
           }
           y -= lineHeight * 0.5
         }
-      })
+      }
 
       const pdfBytes = await pdfDoc.save()
       const blob = new Blob([pdfBytes], { type: 'application/pdf' })
