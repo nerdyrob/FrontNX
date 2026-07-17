@@ -1,7 +1,7 @@
 import type { ChatMessage, ModelOption } from '~/types'
 import { LmStudioService } from '~/services/lm-studio.service'
 import { SessionService } from '~/services/session.service'
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { createMd } from '~/utils/markdown'
 
 function uid(): string {
   if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
@@ -40,96 +40,102 @@ export function useChatState() {
       })
       const content = sessionRes.content
 
-      const pdfDoc = await PDFDocument.create()
-      const page = pdfDoc.addPage([595.28, 841.89])
+      // Strip HTML comments (metrics metadata)
+      let clean = content.replace(/<!--[\s\S]*?-->/g, '')
 
-      const { width, height } = page.getSize()
+      // Convert YAML front matter to a readable header
+      clean = clean.replace(
+        /^---\nmodel: (.+)\nservice: (.+)\ncreated: (.+)\n---\n*/,
+        (_match, model, _service, created) => {
+          const date = new Date(created).toLocaleString()
+          return `# Chat Session  \n*Model: ${model} — ${date}*\n\n`
+        },
+      )
 
-      const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-      const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+      const md = createMd()
+      const bodyHtml = md.render(clean)
 
-      const lines = content.split('\n')
-      let y = height - 50
-      const lineHeight = 20
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (line.startsWith('---')) {
-          const titleText = line.replace(/---/g, '').trim()
-          y -= lineHeight * 1.5
-          page.drawText(titleText, {
-            x: 50,
-            y: y,
-            size: 24,
-            font: titleFont,
-            color: rgb(0.2, 0.2, 0.5),
-          })
-          y -= lineHeight
-        } else if (line.startsWith('##')) {
-          const text = line.replace(/^#+\s*/, '')
-          y -= lineHeight
-          page.drawText(text, {
-            x: 50,
-            y: y,
-            size: 14,
-            font: bodyFont,
-            color: rgb(0.3, 0.3, 0.3),
-          })
-          y -= lineHeight * 0.5
-        } else if (line.includes('-->')) {
-          continue
-        } else if (line.trim()) {
-          const words = line.split(' ')
-          let lineText = ''
-          
-          for (const word of words) {
-            const testText = lineText + (lineText ? ' ' : '') + word
-            const textWidth = bodyFont.widthOfTextAtSize(testText, 12)
-            
-            if (textWidth > width - 100) {
-              page.drawText(lineText, {
-                x: 50,
-                y: y,
-                size: 12,
-                font: bodyFont,
-                color: rgb(0, 0, 0),
-              })
-              y -= lineHeight
-              lineText = word
-            } else {
-              lineText = testText
-            }
-          }
-          
-          if (lineText) {
-            page.drawText(lineText, {
-              x: 50,
-              y: y,
-              size: 12,
-              font: bodyFont,
-              color: rgb(0, 0, 0),
-            })
-            y -= lineHeight
-          }
-          y -= lineHeight * 0.5
-        }
-      }
-
-      const pdfBytes = await pdfDoc.save()
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
-
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
       const fileName = currentSessionPath.value.replace(/\\/g, '/')
         .split('/')
         .pop()
         ?.replace(/\.md$/, '.pdf') || 'chat-session.pdf'
-      a.download = `session-${fileName}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+
+      const title = `session-${fileName.replace(/\.pdf$/, '')}`
+
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) {
+        console.error('Popup blocked — allow popups to export PDF')
+        return
+      }
+
+      printWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    @page { size: A4; margin: 25mm 20mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1a1a1a;
+      padding: 0;
+      margin: 0;
+    }
+    .content {
+      max-width: 170mm;
+      margin: 0 auto;
+      padding: 20mm 0;
+    }
+    h1 { font-size: 20pt; margin: 0 0 4pt; color: #111; }
+    h1 + p { color: #666; font-size: 10pt; margin-top: 0; }
+    h2 {
+      font-size: 13pt;
+      color: #333;
+      margin: 20pt 0 8pt;
+      padding-bottom: 4pt;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    p { margin: 8pt 0; }
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      font-size: 9pt;
+      line-height: 1.45;
+    }
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+      background: #f1f3f5;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9pt;
+    }
+    pre code { background: none; padding: 0; }
+    blockquote {
+      margin: 8pt 0;
+      padding: 4pt 16pt;
+      border-left: 4px solid #d0d7de;
+      color: #57606a;
+    }
+    a { color: #2563eb; }
+    img { max-width: 100%; }
+    ul, ol { padding-left: 24pt; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 16pt 0; }
+  </style>
+</head>
+<body>
+  <div class="content">${bodyHtml}</div>
+</body>
+</html>`)
+      printWindow.document.close()
+      printWindow.focus()
+      printWindow.onafterprint = () => printWindow.close()
+      printWindow.print()
     } catch (error) {
       console.error('Failed to export to PDF:', error)
     }
