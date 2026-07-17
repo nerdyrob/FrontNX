@@ -1,6 +1,7 @@
 import type { ChatMessage, ModelOption } from '~/types'
 import { LmStudioService } from '~/services/lm-studio.service'
 import { SessionService } from '~/services/session.service'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 function uid(): string {
   if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
@@ -39,8 +40,6 @@ export function useChatState() {
       })
       const content = sessionRes.content
 
-      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
-      
       const pdfDoc = await PDFDocument.create()
       const page = pdfDoc.addPage([595.28, 841.89])
 
