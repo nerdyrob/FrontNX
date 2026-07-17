@@ -35,6 +35,15 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <UButton
+            v-if="chat.currentSessionPath.value && chat.availableModels.value.length > 0"
+            icon="i-lucide-file-text"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            title="Export to PDF"
+            @click="chat.exportToPDF"
+          />
           <ModelSelector
             v-if="chat.availableModels.value.length > 0"
             v-model="chat.selectedModel.value"
