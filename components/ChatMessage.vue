@@ -41,7 +41,7 @@
           </span>
           <span v-else-if="timestamp" class="text-[11px] text-dimmed">{{ timestamp }}</span>
           <UButton
-            v-if="!showProgressDots && message.content"
+            v-if="!showProgressDots && copyableContent"
             :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
             size="2xs"
             color="neutral"
@@ -50,8 +50,14 @@
             @click="copyMessage"
           />
         </div>
+        <details v-if="thinkingContent && !showProgressDots" class="pl-9 mb-2 rounded-lg transition-colors [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60 [&[open]]:p-3">
+          <summary class="text-[11px] text-dimmed cursor-pointer select-none hover:text-highlighted">Thought process</summary>
+          <div class="mt-2 text-sm leading-relaxed prose-message">
+            <MarkdownRenderer :content="thinkingContent" />
+          </div>
+        </details>
         <div class="pl-9 text-sm leading-relaxed prose-message">
-          <MarkdownRenderer v-if="message.content" :content="message.content" />
+          <MarkdownRenderer v-if="displayContent" :content="displayContent" />
           <span v-else-if="showProgressDots" class="text-muted italic">Thinking…</span>
         </div>
         <div v-if="showIncompleteNotice" class="pl-9 mt-2 text-[11px] text-amber-600">
@@ -117,18 +123,35 @@ const showIncompleteNotice = computed(() => {
   )
 })
 
+const thinkingContent = computed(() => {
+  if (props.message.role !== 'assistant') return ''
+  const match = props.message.content.match(/<thinking>\s*([\s\S]*?)\s*<\/thinking>/i)
+  return match?.[1]?.trim() ?? ''
+})
+
+const displayContent = computed(() => {
+  if (props.message.role !== 'assistant') return props.message.content
+  return props.message.content
+    .replace(/<thinking>\s*[\s\S]*?\s*<\/thinking>\s*/i, '')
+    .trim()
+})
+
+const copyableContent = computed(() => {
+  return props.message.role === 'assistant' ? displayContent.value : props.message.content
+})
+
 const copied = ref(false)
 let copiedResetTimer: ReturnType<typeof setTimeout> | null = null
 
 async function copyMessage() {
-  if (!props.message.content) return
+  if (!copyableContent.value) return
 
   try {
     if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(props.message.content)
+      await navigator.clipboard.writeText(copyableContent.value)
     } else {
       const el = document.createElement('textarea')
-      el.value = props.message.content
+      el.value = copyableContent.value
       el.style.position = 'fixed'
       el.style.opacity = '0'
       document.body.appendChild(el)

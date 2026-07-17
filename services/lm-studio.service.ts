@@ -37,6 +37,23 @@ export class LmStudioService {
     return ''
   }
 
+  private extractReasoning(json: any): string {
+    const choiceReasoning = json?.choices?.[0]?.message?.reasoning_content
+    if (typeof choiceReasoning === 'string' && choiceReasoning.length > 0) return choiceReasoning
+
+    const rootReasoning = json?.reasoning_content
+    if (typeof rootReasoning === 'string' && rootReasoning.length > 0) return rootReasoning
+
+    if (Array.isArray(json?.output)) {
+      const reasoningItems = json.output
+        .filter((item: any) => item?.type === 'reasoning' && typeof item?.content === 'string')
+        .map((item: any) => item.content)
+      if (reasoningItems.length > 0) return reasoningItems.join('\n\n')
+    }
+
+    return ''
+  }
+
   private extractMetrics(json: any): ChatResponseMetrics {
     const stats = json?.stats ?? json?.result?.stats ?? {}
     const tokensUsed = stats.total_output_tokens ?? stats.output_tokens ?? json?.usage?.completion_tokens ?? json?.usage?.total_tokens ?? 0
@@ -94,6 +111,7 @@ export class LmStudioService {
     let eventType = ''
     let eventData: string[] = []
     let fullContent = ''
+    let fullReasoning = ''
     let metrics: ChatResponseMetrics | undefined
     let sawChatEnd = false
     let sawDone = false
@@ -108,6 +126,15 @@ export class LmStudioService {
       if (typeof deltaContent === 'string') return deltaContent
       const textChunk = payload?.choices?.[0]?.text
       if (typeof textChunk === 'string') return textChunk
+      return ''
+    }
+
+    const extractReasoningDelta = (payload: any, currentEventType: string): string => {
+      if (currentEventType === 'reasoning.delta' && typeof payload?.content === 'string') {
+        return payload.content
+      }
+      const reasoningDelta = payload?.choices?.[0]?.delta?.reasoning_content
+      if (typeof reasoningDelta === 'string') return reasoningDelta
       return ''
     }
 
@@ -134,6 +161,12 @@ export class LmStudioService {
         const fallbackContent = this.extractContent(resultPayload)
         if (fallbackContent) fullContent = fallbackContent
       }
+
+      if (currentEventType === 'chat.end' && !fullReasoning) {
+        const resultPayload = payload?.result ?? payload
+        const fallbackReasoning = this.extractReasoning(resultPayload)
+        if (fallbackReasoning) fullReasoning = fallbackReasoning
+      }
     }
 
     const processPayload = (rawPayload: string, currentEventType: string) => {
@@ -149,6 +182,10 @@ export class LmStudioService {
         if (delta) {
           fullContent += delta
           onChunk?.(delta)
+        }
+        const reasoningDelta = extractReasoningDelta(payload, currentEventType)
+        if (reasoningDelta) {
+          fullReasoning += reasoningDelta
         }
         maybeApplyFinalContent(payload, currentEventType)
         applyMetrics(payload, currentEventType)
@@ -220,8 +257,16 @@ export class LmStudioService {
       ? 'incomplete'
       : (sawChatEnd || sawDone || sawFinishReason ? 'complete' : 'incomplete')
 
+    const hasInlineThinking = /<thinking>[\s\S]*<\/thinking>/i.test(fullContent)
+    const normalizedReasoning = fullReasoning.trim()
+    let mergedContent = fullContent
+
+    if (!hasInlineThinking && normalizedReasoning) {
+      mergedContent = `<thinking>\n${normalizedReasoning}\n</thinking>${fullContent ? `\n\n${fullContent}` : ''}`
+    }
+
     return {
-      content: fullContent,
+      content: mergedContent,
       metrics,
       status,
       stopReason,
