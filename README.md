@@ -107,7 +107,11 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 
 ## Session Files
 
-Chats are saved as markdown files in `chat-sessions/`:
+Chats are saved as markdown files in a user cache directory:
+
+- Linux: `~/.cache/FrontNX/chat-sessions/`
+- macOS: `~/Library/Caches/FrontNX/chat-sessions/`
+- Windows: `%LOCALAPPDATA%\\FrontNX\\chat-sessions\\`
 
 ```markdown
 ---

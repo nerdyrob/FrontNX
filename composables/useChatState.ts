@@ -54,6 +54,14 @@ export function useChatState() {
       createdAt: new Date().toISOString(),
     }
     messages.value.push(userMsg)
+
+    try {
+      // Persist prompt immediately so a session file exists as soon as the user sends.
+      await saveSession()
+    } catch (err) {
+      console.error('Failed to persist user prompt:', err)
+    }
+
     isStreaming.value = true
 
     const assistantMsg: ChatMessage = {

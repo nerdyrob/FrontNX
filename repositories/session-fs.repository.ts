@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, renameSync, readFileSync } from 'node:fs'
 import { readFile, writeFile, appendFile, unlink } from 'node:fs/promises'
+import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
 import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
@@ -11,12 +12,28 @@ function toShortTimestamp(iso: string): string {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
 }
 
+function defaultSessionsDir(): string {
+  const appName = 'FrontNX'
+  const os = platform()
+
+  if (os === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
+    return join(localAppData, appName, 'chat-sessions')
+  }
+
+  if (os === 'darwin') {
+    return join(homedir(), 'Library', 'Caches', appName, 'chat-sessions')
+  }
+
+  return join(homedir(), '.cache', appName, 'chat-sessions')
+}
+
 export class SessionFsRepository implements ISessionRepository {
   private baseDir: string
   private sessionService: SessionService
 
   constructor(baseDir?: string) {
-    this.baseDir = baseDir ?? join(process.cwd(), 'chat-sessions')
+    this.baseDir = baseDir ?? defaultSessionsDir()
     this.sessionService = new SessionService()
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true })
