@@ -188,7 +188,9 @@ const processingTimeLabel = computed(() => {
   const ms = props.message.metrics?.processingTimeMs ?? 0
   if (!ms) return 'Processing time: -'
   if (ms < 1000) return `Processing time: ${ms} ms`
-  return `Processing time: ${(ms / 1000).toFixed(2)} s`
+  const seconds = ms / 1000
+  if (seconds >= 60) return `Processing time: ${(seconds / 60).toFixed(1)}m`
+  return `Processing time: ${seconds.toFixed(2)}s`
 })
 
 const tokensUsedLabel = computed(() => {

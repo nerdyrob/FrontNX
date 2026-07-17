@@ -30,7 +30,7 @@ export function useChatState() {
   const currentSessionPath = ref<string | null>(null)
   const loadError = ref<string | null>(null)
   const sessionRefreshTick = ref(0)
-  const thinkingEnabled = ref(false)
+  const thinkingEnabled = ref(true)
 
   const thinkingSupported = computed(() => !!selectedModel.value)
 
