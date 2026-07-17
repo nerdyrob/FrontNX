@@ -49,6 +49,11 @@ npm run build
 npm run preview
 ```
 
+## Kill 
+```bash
+sudo kill -9 $(sudo lsof -t -i:3001)
+```
+
 Produces a production build in `.output/`.
 
 ## Tests
