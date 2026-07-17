@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<{
 
 function formatTotals(totalProcessingTimeMs: number, totalTokens: number): string {
   const seconds = totalProcessingTimeMs / 1000
-  return `${totalTokens} tps, ${seconds.toFixed(1)}s`
+    return `${totalTokens} tokens, ${seconds.toFixed(1)}s`
 }
 
 function formatTimestamp(value: string): string {

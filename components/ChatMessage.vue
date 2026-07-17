@@ -11,6 +11,15 @@
           <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
           <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
           <UButton
+            v-if="!hideActions && message.content"
+            icon="i-lucide-trash-2"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="text-dimmed hover:text-highlighted active:text-highlighted"
+            @click="$emit('delete', index)"
+          />
+          <UButton
             v-if="message.content"
             :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
             size="2xs"
@@ -41,6 +50,15 @@
           </span>
           <span v-else-if="timestamp" class="text-[11px] text-dimmed">{{ timestamp }}</span>
           <UButton
+            v-if="!hideActions && !showProgressDots && message.content"
+            icon="i-lucide-trash-2"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="text-dimmed hover:text-highlighted active:text-highlighted"
+            @click="$emit('delete', index)"
+          />
+          <UButton
             v-if="!showProgressDots && copyableContent"
             :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
             size="2xs"
@@ -70,17 +88,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Delete button -->
-    <UButton
-      v-if="!hideActions && message.content"
-      size="2xs"
-      color="neutral"
-      variant="ghost"
-      icon="i-lucide-trash-2"
-      class="absolute -top-0.5 -right-1 text-dimmed hover:text-highlighted active:text-highlighted transition-colors"
-      @click="$emit('delete', index)"
-    />
   </div>
 </template>
 
