@@ -35,6 +35,7 @@
         @select="loadSession"
         @new="newSession"
         @delete="deleteSession"
+        @toggle="sidebarOpen = !sidebarOpen"
       />
 
       <!-- Main chat area -->

@@ -2,52 +2,77 @@
   <aside
     :class="[
       'flex flex-col border-r border-default bg-primary/10 shrink-0 transition-all duration-200',
-      'lg:relative lg:translate-x-0',
-      open ? 'w-64' : 'w-0 lg:w-0 overflow-hidden',
+      open ? 'w-64' : 'w-8',
     ]"
-    :style="open ? '' : 'width: 0'"
   >
-    <div class="flex items-center justify-between px-4 h-[57px] shrink-0">
-      <span class="text-sm font-semibold text-dimmed">Sessions</span>
-      <UButton
-        icon="i-lucide-plus"
-        size="2xs"
-        color="neutral"
-        variant="ghost"
-        title="New session"
-        @click="$emit('new')"
-      />
-    </div>
-    <div class="flex-1 overflow-y-auto px-2 pb-2 -mt-2 space-y-0.5">
-      <div
-        v-for="session in sessions"
-        :key="session.id"
-        :class="[
-          'group relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
-          session.id === currentSessionId
-            ? 'bg-accented text-highlighted shadow-sm'
-            : 'text-muted hover:bg-muted hover:text-highlighted',
-        ]"
-        @click="$emit('select', session.id)"
-      >
-        <div class="truncate font-medium leading-tight">{{ session.preview || session.title }}</div>
-        <div class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
-          <div class="truncate">{{ formatTimestamp(session.timestamp) }}</div>
-          <div class="ml-auto whitespace-nowrap text-right">{{ formatTotals(session.totalProcessingTimeMs, session.totalTokens) }}</div>
+    <template v-if="open">
+      <div class="flex items-center justify-between px-3 h-[57px] shrink-0">
+        <span class="text-sm font-semibold text-dimmed">Sessions</span>
+        <div class="flex items-center gap-3">
           <UButton
-            icon="i-lucide-trash-2"
+            icon="i-lucide-message-square-plus"
             size="2xs"
             color="neutral"
             variant="ghost"
-            class="opacity-0 group-hover:opacity-100 transition-opacity"
-            @click.stop="$emit('delete', session.id)"
+            class="text-dimmed"
+            title="New session"
+            @click.stop="$emit('new')"
+          />
+          <UButton
+            icon="i-lucide-panel-left-close"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="text-dimmed"
+            title="Collapse sidebar"
+            @click="$emit('toggle')"
           />
         </div>
       </div>
-      <div v-if="sessions.length === 0" class="px-3 py-8 text-center">
-        <p class="text-xs text-muted">No sessions yet</p>
+      <div class="flex-1 overflow-y-auto px-2 pb-2 -mt-2 space-y-0.5">
+        <div
+          v-for="session in sessions"
+          :key="session.id"
+          :class="[
+            'group relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
+            session.id === currentSessionId
+              ? 'bg-accented text-highlighted shadow-sm'
+              : 'text-muted hover:bg-muted hover:text-highlighted',
+          ]"
+          @click="$emit('select', session.id)"
+        >
+          <div class="truncate font-medium leading-tight">{{ session.preview || session.title }}</div>
+          <div class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
+            <div class="truncate">{{ formatTimestamp(session.timestamp) }}</div>
+            <div class="ml-auto whitespace-nowrap text-right">{{ formatTotals(session.totalProcessingTimeMs, session.totalTokens) }}</div>
+            <UButton
+              icon="i-lucide-trash-2"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="opacity-0 group-hover:opacity-100 transition-opacity"
+              @click.stop="$emit('delete', session.id)"
+            />
+          </div>
+        </div>
+        <div v-if="sessions.length === 0" class="px-3 py-8 text-center">
+          <p class="text-xs text-muted">No sessions yet</p>
+        </div>
       </div>
-    </div>
+    </template>
+    <template v-else>
+      <div class="flex flex-col items-center pt-2">
+        <UButton
+          icon="i-lucide-panel-left-open"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          class="text-dimmed"
+          title="Expand sidebar"
+          @click="$emit('toggle')"
+        />
+      </div>
+    </template>
   </aside>
 </template>
 
@@ -76,5 +101,6 @@ defineEmits<{
   select: [id: string]
   delete: [id: string]
   new: []
+  toggle: []
 }>()
 </script>
