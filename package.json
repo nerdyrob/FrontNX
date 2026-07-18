@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@nuxt/ui": "^3.0.0",
+    "entities": "^7.0.1",
     "katex": "^0.17.0",
     "markdown-it": "^14.3.0",
     "nuxt": "^3.16.0",
