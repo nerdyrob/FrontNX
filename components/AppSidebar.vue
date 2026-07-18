@@ -6,7 +6,7 @@
     ]"
   >
     <template v-if="open">
-      <div class="flex items-center justify-between px-3 h-[57px] shrink-0">
+      <div class="flex items-center justify-between pl-6 pr-3 h-[57px] shrink-0">
         <span class="text-sm font-semibold text-dimmed">Sessions</span>
         <div class="flex items-center gap-3">
           <UButton
@@ -34,7 +34,7 @@
           v-for="session in sessions"
           :key="session.id"
           :class="[
-            'group relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
+            'group relative w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
             session.id === currentSessionId
               ? 'bg-accented text-highlighted shadow-sm'
               : 'text-muted hover:bg-muted hover:text-highlighted',
