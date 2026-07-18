@@ -7,7 +7,7 @@
     ]"
     :style="open ? '' : 'width: 0'"
   >
-    <div class="flex items-center justify-between px-4 h-[57px] border-b border-default shrink-0">
+    <div class="flex items-center justify-between px-4 h-[57px] shrink-0">
       <span class="text-sm font-semibold text-dimmed">Sessions</span>
       <UButton
         icon="i-lucide-plus"
@@ -18,7 +18,7 @@
         @click="$emit('new')"
       />
     </div>
-    <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
+    <div class="flex-1 overflow-y-auto px-2 pb-2 -mt-2 space-y-0.5">
       <div
         v-for="session in sessions"
         :key="session.id"
