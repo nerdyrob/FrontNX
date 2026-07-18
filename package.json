@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/nuxt/bin/nuxt.mjs dev",
-    "build": "NITRO_OUTPUT_DIR=${NITRO_OUTPUT_DIR:-/tmp/frontnx-output} node ./node_modules/nuxt/bin/nuxt.mjs build",
-    "generate": "NITRO_OUTPUT_DIR=${NITRO_OUTPUT_DIR:-/tmp/frontnx-output} node ./node_modules/nuxt/bin/nuxt.mjs generate",
-    "preview": "NITRO_OUTPUT_DIR=${NITRO_OUTPUT_DIR:-/tmp/frontnx-output} node ./node_modules/nuxt/bin/nuxt.mjs preview",
+    "build": "node ./node_modules/nuxt/bin/nuxt.mjs build",
+    "generate": "node ./node_modules/nuxt/bin/nuxt.mjs generate",
+    "preview": "node ./node_modules/nuxt/bin/nuxt.mjs preview",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"

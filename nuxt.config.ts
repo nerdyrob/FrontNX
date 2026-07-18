@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 
 const isSharedMount = process.cwd().startsWith('/mnt/sharedfolder/')
-const defaultNitroOutput = isSharedMount ? '/tmp/frontnx-output' : '.output'
+const defaultNitroOutput = isSharedMount ? '/tmp/frontnx-output' : 'build'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
