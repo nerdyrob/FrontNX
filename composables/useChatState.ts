@@ -58,7 +58,7 @@ export function useChatState() {
         selectedModel.value = availableModels.value[0].id
       }
     } catch (err: any) {
-      loadError.value = `Could not connect to LM Studio at ${config.public.lmStudioBaseUrl}. Make sure it's running.`
+      loadError.value = `Could not connect to ${config.public.llmServerName} at ${config.public.llmServerBaseURL}. Make sure it's running.`
       availableModels.value = []
     }
   }
@@ -213,7 +213,7 @@ export function useChatState() {
     if (!currentSessionPath.value) {
       const meta = {
         model: selectedModel.value,
-        service: 'LM Studio',
+        service: config.public.llmServerName,
         created: new Date().toISOString(),
       }
       const res = await $fetch<{ path: string }>('/api/session/create', {
@@ -225,7 +225,7 @@ export function useChatState() {
 
     const content = sessionService.buildMarkdown(messages.value, {
       model: selectedModel.value,
-      service: 'LM Studio',
+      service: config.public.llmServerName,
       created: new Date().toISOString(),
     })
 
@@ -240,7 +240,7 @@ export function useChatState() {
     if (!currentSessionPath.value) return
     const content = sessionService.buildMarkdown(messages.value, {
       model: selectedModel.value,
-      service: 'LM Studio',
+      service: config.public.llmServerName,
       created: new Date().toISOString(),
     })
     await $fetch('/api/session/rewrite', {

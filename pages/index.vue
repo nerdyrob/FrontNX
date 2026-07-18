@@ -64,7 +64,7 @@
                 <p class="text-sm text-muted">{{ chat.loadError.value }}</p>
               </div>
               <div v-else-if="!chat.availableModels.value.length" class="space-y-2">
-                <h2 class="text-lg font-semibold">Connecting to LM Studio</h2>
+                <h2 class="text-lg font-semibold">Connecting to {{ serverName }}</h2>
                 <p class="text-sm text-muted">Fetching available models…</p>
                 <UButton
                   loading
@@ -112,6 +112,8 @@
 <script setup lang="ts">
 import type { SessionListItem } from '~/repositories/session.repository'
 
+const config = useRuntimeConfig()
+const serverName = config.public.llmServerName
 const chat = useChatState()
 const messagesContainer = ref<HTMLElement | null>(null)
 const sidebarOpen = ref(true)

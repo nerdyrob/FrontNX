@@ -1,4 +1,5 @@
 export interface AppConfig {
-  lmStudioBaseUrl: string
+  llmServerBaseURL: string
+  llmServerName: string
   chatRequestTimeoutMs: number
 }

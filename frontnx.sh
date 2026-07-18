@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$0")"
+set -a; . ./.env; set +a
 IP=$(hostname -I | awk '{print $1}')
-PORT=3001 HOST=0.0.0.0 node build/server/index.mjs &
+PORT=$PORT HOST=$HOST node build/server/index.mjs &
 SERVER_PID=$!
 sleep 2
 if command -v xdg-open >/dev/null 2>&1; then

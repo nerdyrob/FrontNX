@@ -1,6 +1,6 @@
 # FrontNX
 
-A chat frontend for [LM Studio](https://lmstudio.ai) built with [Nuxt 3](https://nuxt.com) and [Nuxt UI](https://ui.nuxt.com).
+A configurable chat frontend for LLM servers (e.g. LM Studio) built with [Nuxt 3](https://nuxt.com) and [Nuxt UI](https://ui.nuxt.com).
 
 Each conversation session is persisted to a unique markdown file with front-matter metadata (model, service, timestamp).
 
@@ -15,13 +15,13 @@ services           (API calls, markdown formatting)
       ↓
 repositories       (persistence abstraction)
       ↓
-server/api         (Nitro routes for file I/O)
+server/api         (Nitro routes for file I/O, LM proxy)
 ```
 
 ## Requirements
 
 - Node.js >= 20
-- LM Studio running locally with API server enabled (default `http://localhost:1234`)
+- An LLM server running with an OpenAI-compatible API endpoint
 
 ## Setup
 
@@ -29,10 +29,19 @@ server/api         (Nitro routes for file I/O)
 npm install
 ```
 
-Configure settings directly in [nuxt.config.ts](nuxt.config.ts):
+Copy [.env.example](.env.example) to `.env` in the project root and fill in your values:
 
-- `runtimeConfig.public.lmStudioBaseUrl`
-- `runtimeConfig.public.chatRequestTimeoutMs` (default `900000` = 15 minutes)
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `HOST` | `0.0.0.0` | Server bind address |
+| `PORT` | `3001` | Server port |
+| `LLM_SERVER_BASE_URL` | — | Base URL of the LLM server API |
+| `LLM_SERVER_NAME` | — | Display name shown in UI and saved to session files |
+| `CHAT_REQUEST_TIMEOUT_MS` | `900000` | Request timeout in ms (15 minutes) |
 
 ## Development
 
@@ -40,21 +49,18 @@ Configure settings directly in [nuxt.config.ts](nuxt.config.ts):
 npm run dev
 ```
 
-Opens at `http://localhost:3000`.
+Opens at `http://localhost:3001`.
 
 ## Build
 
 ```bash
 npm run build
-npm run preview
+node build/server/index.mjs
 ```
 
-## Kill 
-```bash
-sudo kill -9 $(sudo lsof -t -i:3001)
-```
+Produces a production build in `build/`.
 
-Produces a production build in `.output/`.
+The `.env` file is loaded automatically by both `npm run dev` (via Nuxt) and `frontnx.sh` (via `source`).
 
 ## Tests
 
@@ -100,14 +106,23 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 ├── pages/
 │   └── index.vue              # Main chat page
 ├── server/
+│   ├── api/lm/[...].ts        # LM API proxy
 │   └── api/session/           # Session persistence API routes
 │       ├── create.post.ts
 │       ├── append.post.ts
 │       ├── rewrite.post.ts
+│       ├── delete.delete.ts
+│       ├── list.get.ts
 │       └── read.get.ts
+├── assets/
+│   └── css/
+│       ├── main.css
+│       └── theme.css
 └── tests/
-    └── services/
-        └── session.service.spec.ts
+    ├── services/
+    │   └── session.service.spec.ts
+    └── repositories/
+        └── session-fs.repository.spec.ts
 ```
 
 ## Session Files
@@ -134,10 +149,14 @@ Hello
 Hi! How can I help you today?
 ```
 
+The `service` field in session files uses the `llmServerName` config value.
+
 ## Features
 
-- Model selection dropdown populated from LM Studio's available models
+- Model selection dropdown populated from the server's available models
 - Streamed responses with real-time token display
 - Per-message deletion and full session clear
 - Automatic session persistence to markdown files
 - Markdown session files are human-readable and portable
+- Thinking/reasoning toggle (supported by the LLM server)
+- PDF export via browser print

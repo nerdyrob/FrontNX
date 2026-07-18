@@ -2,7 +2,7 @@ import { Readable } from 'node:stream'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const base = config.public.lmStudioBaseUrl.replace(/\/+$/, '')
+  const base = config.public.llmServerBaseURL.replace(/\/+$/, '')
   const path = getRequestURL(event).pathname.replace(/^\/api\/lm\//, '')
   const target = path.startsWith('v0/')
     ? `${base}/api/${path}`
@@ -50,10 +50,11 @@ export default defineEventHandler(async (event) => {
     return data
   } catch (err: any) {
     if (err.cause?.code === 'ECONNREFUSED') {
+      const name = config.public.llmServerName as string
       throw createError({
         statusCode: 503,
-        statusMessage: 'LM Studio not reachable',
-        message: `Cannot connect to ${base}. Make sure LM Studio is running.`,
+        statusMessage: `${name} not reachable`,
+        message: `Cannot connect to ${base}. Make sure ${name} is running.`,
       })
     }
     throw err
