@@ -62,6 +62,51 @@ Produces a production build in `build/`.
 
 The `.env` file is loaded automatically by both `npm run dev` (via Nuxt) and `frontnx.sh` (via `source`).
 
+## Linux Distribution (Standalone Binary)
+
+A single-file executable can be built for Linux x86_64 using Node.js SEA (Single Executable Applications). No Node.js runtime is required on the target machine.
+
+```bash
+npm run build:sea
+```
+
+Produces `build/frontnx-linux` (~122 MB). The `public/` directory with static assets is already inside `build/`.
+
+### Distribution
+
+Copy the entire `build/` directory to the target machine. Bundle contents:
+
+```
+build/
+├── frontnx-linux      (the binary)
+├── public/            (static assets)
+├── server/            (Nitro server — not needed by the binary)
+└── .sea/              (intermediate build — not needed)
+```
+
+Place a `.env` file alongside `build/frontnx-linux` on the target:
+
+```
+build/
+├── frontnx-linux
+├── public/
+└── .env               (create this)
+```
+
+### Usage
+
+```bash
+cd build
+./frontnx-linux
+```
+
+Starts the server at `http://0.0.0.0:3000` (or the address configured in `.env`). Environment variables are loaded from `.env` in the working directory.
+
+### Notes
+
+- The binary is **architecture-specific**: build on the same arch you deploy to (x86_64 Linux).
+- Run `npm run build:sea` on the target platform; cross-compilation is not supported by SEA.
+
 ## Tests
 
 ```bash

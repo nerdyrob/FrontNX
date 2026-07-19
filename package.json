@@ -7,6 +7,7 @@
     "build": "node ./node_modules/nuxt/bin/nuxt.mjs build",
     "generate": "node ./node_modules/nuxt/bin/nuxt.mjs generate",
     "preview": "node ./node_modules/nuxt/bin/nuxt.mjs preview",
+    "build:sea": "npm run build && node scripts/build-sea.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
