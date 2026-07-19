@@ -22,6 +22,13 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: false },
   experimental: { appManifest: false },
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+      ],
+    },
+  },
   colorMode: {
     preference: 'system',
     fallback: 'light',

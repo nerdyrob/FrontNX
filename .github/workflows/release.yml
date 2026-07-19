@@ -46,6 +46,8 @@ jobs:
           cp -r build/public release/public
           cp .env.example release/.env
           cp README.md release/
+          cp frontnx.desktop release/
+          cp -r assets/icons release/icons
           cd release && ${{ matrix.pack }} ../${{ matrix.archive }} .
 
       - name: Upload release asset

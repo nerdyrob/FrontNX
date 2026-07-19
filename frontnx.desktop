@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=FrontNX
+Comment=LLM Chat Frontend
+Exec=bash -c 'cd %k && ./frontnx'
+Icon=frontnx
+Terminal=false
+Type=Application
+Categories=Network;Chat;Utility;

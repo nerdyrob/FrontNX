@@ -130,6 +130,28 @@ Downloads include the binary, `public/`, `.env`, and `README.md`:
 - The binary is **OS and architecture-specific** — build on the same platform you deploy to. Cross-compilation is not supported by SEA.
 - Run `npm run build:sea` locally, or use the CI workflow for automated builds.
 
+### Linux Desktop Icon
+
+A `.desktop` file is included at `frontnx.desktop` in the repo. To install a launcher for your binary:
+
+```bash
+# Copy the icon
+mkdir -p ~/.local/share/icons/hicolor/scalable/apps
+cp assets/icons/frontnx.svg ~/.local/share/icons/hicolor/scalable/apps/
+
+# Copy and tweak the desktop entry
+cp frontnx.desktop ~/.local/share/applications/
+# Edit ~/.local/share/applications/frontnx.desktop so that:
+#   - Exec points to your binary's directory
+#   - Icon path points to the SVG above
+# (Or use the absolute path: Icon=/home/you/.local/share/icons/hicolor/scalable/apps/frontnx.svg)
+
+# Update the desktop database
+update-desktop-database ~/.local/share/applications/
+```
+
+FrontNX will then appear in your application menu.
+
 ## Tests
 
 ```bash
