@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { existsSync, cpSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, cpSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,7 +9,7 @@ const platform = process.platform;
 const binaryName = platform === 'win32' ? 'frontnx.exe' : 'frontnx';
 const outputName = `build/${binaryName}`;
 
-execSync(`mkdir -p ${seaDir}`, { cwd: root });
+mkdirSync(seaDir, { recursive: true });
 
 // 1. Bundle Nitro server with esbuild
 console.log('[sea] Bundling server with esbuild...');
@@ -39,11 +39,11 @@ execSync(`node --experimental-sea-config sea-config.json`, { cwd: root, stdio: '
 
 // 4. Copy Node.js binary and inject blob
 console.log('[sea] Injecting blob into Node.js binary...');
-const whichCmd = process.platform === 'win32' ? 'where node' : 'command -v node';
-const nodePath = execSync(whichCmd, { encoding: 'utf8' }).trim();
+const nodePath = process.execPath;
 cpSync(nodePath, resolve(root, outputName));
+const nullDevice = process.platform === 'win32' ? '2>nul' : '2>/dev/null';
 execSync(
-  `npx postject ${outputName} NODE_SEA_BLOB ${seaDir}/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 2>/dev/null`,
+  `npx postject ${outputName} NODE_SEA_BLOB ${seaDir}/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 ${nullDevice}`,
   { cwd: root, stdio: 'inherit' }
 );
 

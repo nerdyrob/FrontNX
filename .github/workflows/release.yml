@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -45,6 +48,11 @@ jobs:
           cp README.md release/
           cd release && ${{ matrix.pack }} ../${{ matrix.archive }} .
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ matrix.archive }}
+      - name: Upload release asset
+        shell: bash
+        run: |
+          gh release create "${{ github.ref_name }}" "${{ matrix.archive }}" \
+            --title "${{ github.ref_name }}" --generate-notes 2>/dev/null || \
+          gh release upload "${{ github.ref_name }}" "${{ matrix.archive }}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
