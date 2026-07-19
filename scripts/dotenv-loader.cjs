@@ -25,7 +25,10 @@ const url = `http://${host}:${port}`;
 setTimeout(() => {
   const { execSync } = require('child_process');
   try {
-    execSync(`xdg-open "${url}" 2>/dev/null || open "${url}" 2>/dev/null || sensible-browser "${url}" 2>/dev/null || true`, { stdio: 'ignore', timeout: 5000 });
+    const cmd = process.platform === 'win32'
+      ? `start "" "${url}"`
+      : `xdg-open "${url}" 2>/dev/null || open "${url}" 2>/dev/null || sensible-browser "${url}" 2>/dev/null || true`;
+    execSync(cmd, { stdio: 'ignore', timeout: 5000, shell: true });
   } catch {}
 }, 2000);
 }

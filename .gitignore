@@ -63,5 +63,6 @@ typings/
 # environment
 .env
 
-# SEA standalone binary
-frontnx-linux
+# SEA standalone binaries
+frontnx
+frontnx.exe

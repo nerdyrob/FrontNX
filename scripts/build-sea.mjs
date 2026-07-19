@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 
 const root = resolve(fileURLToPath(import.meta.url), '../..');
 const seaDir = resolve(root, 'build/.sea');
-const outputName = 'build/frontnx-linux';
+const platform = process.platform;
+const binaryName = platform === 'win32' ? 'frontnx.exe' : 'frontnx';
+const outputName = `build/${binaryName}`;
 
 execSync(`mkdir -p ${seaDir}`, { cwd: root });
 
@@ -37,7 +39,8 @@ execSync(`node --experimental-sea-config sea-config.json`, { cwd: root, stdio: '
 
 // 4. Copy Node.js binary and inject blob
 console.log('[sea] Injecting blob into Node.js binary...');
-const nodePath = execSync('command -v node', { encoding: 'utf8' }).trim();
+const whichCmd = process.platform === 'win32' ? 'where node' : 'command -v node';
+const nodePath = execSync(whichCmd, { encoding: 'utf8' }).trim();
 cpSync(nodePath, resolve(root, outputName));
 execSync(
   `npx postject ${outputName} NODE_SEA_BLOB ${seaDir}/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 2>/dev/null`,

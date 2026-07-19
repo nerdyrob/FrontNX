@@ -62,33 +62,40 @@ Produces a production build in `build/`.
 
 The `.env` file is loaded automatically by both `npm run dev` (via Nuxt) and `frontnx.sh` (via `source`).
 
-## Linux Distribution (Standalone Binary)
+## Standalone Binary (All Platforms)
 
-A single-file executable can be built for Linux x86_64 using Node.js SEA (Single Executable Applications). No Node.js runtime is required on the target machine.
+A single-file executable can be built using Node.js SEA (Single Executable Applications). No Node.js runtime is required on the target machine.
 
 ```bash
 npm run build:sea
 ```
 
-Produces `build/frontnx-linux` (~122 MB). The `public/` directory with static assets is already inside `build/`.
+Produces a binary in `build/`:
+
+| Platform | Binary |
+|---|---|
+| Linux / macOS | `build/frontnx` |
+| Windows | `build/frontnx.exe` |
+
+The `public/` directory with static assets is already inside `build/`.
 
 ### Distribution
 
-Copy the entire `build/` directory to the target machine. Bundle contents:
+The entire `build/` directory can be copied as-is. Contents:
 
 ```
 build/
-├── frontnx-linux      (the binary)
-├── public/            (static assets)
+├── frontnx            (or frontnx.exe on Windows)
+├── public/            (static assets — required)
 ├── server/            (Nitro server — not needed by the binary)
 └── .sea/              (intermediate build — not needed)
 ```
 
-Place a `.env` file alongside `build/frontnx-linux` on the target:
+Place a `.env` file alongside the binary on the target:
 
 ```
 build/
-├── frontnx-linux
+├── frontnx
 ├── public/
 └── .env               (create this)
 ```
@@ -97,15 +104,31 @@ build/
 
 ```bash
 cd build
-./frontnx-linux
+./frontnx              # Linux / macOS
+frontnx.exe            # Windows
 ```
 
-Starts the server at `http://0.0.0.0:3000` (or the address configured in `.env`). Environment variables are loaded from `.env` in the working directory.
+The browser opens automatically after 2 seconds. Environment variables are loaded from `.env` in the working directory.
+
+### Build via CI
+
+GitHub Releases are built automatically when pushing a tag matching `v*`:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Downloads include the binary, `public/`, `.env`, and `README.md`:
+
+- `frontnx-linux-x64.tar.gz`
+- `frontnx-macos-arm64.tar.gz`
+- `frontnx-win-x64.zip`
 
 ### Notes
 
-- The binary is **architecture-specific**: build on the same arch you deploy to (x86_64 Linux).
-- Run `npm run build:sea` on the target platform; cross-compilation is not supported by SEA.
+- The binary is **OS and architecture-specific** — build on the same platform you deploy to. Cross-compilation is not supported by SEA.
+- Run `npm run build:sea` locally, or use the CI workflow for automated builds.
 
 ## Tests
 

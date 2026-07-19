@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: frontnx
+            archive: frontnx-linux-x64.tar.gz
+            pack: tar czf
+          - os: macos-latest
+            binary: frontnx
+            archive: frontnx-macos-arm64.tar.gz
+            pack: tar czf
+          - os: windows-latest
+            binary: frontnx.exe
+            archive: frontnx-win-x64.zip
+            pack: zip -r
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build:sea
+
+      - name: Package release
+        shell: bash
+        run: |
+          mkdir -p release
+          cp "build/${{ matrix.binary }}" release/
+          cp -r build/public release/public
+          cp .env.example release/.env
+          cp README.md release/
+          cd release && ${{ matrix.pack }} ../${{ matrix.archive }} .
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.archive }}
