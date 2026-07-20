@@ -13,6 +13,10 @@
     v-else-if="isSvg"
     :code="code"
   />
+  <ChartRenderer
+    v-else-if="isChart"
+    :code="code"
+  />
   <div v-else class="code-block-wrapper my-3 rounded-lg border border-default bg-elevated overflow-hidden">
     <div class="flex items-center justify-between px-4 py-1.5 border-b border-default bg-muted/50">
       <span class="text-[11px] font-medium text-dimmed uppercase tracking-wider">{{ displayLang }}</span>
@@ -90,6 +94,9 @@ const isTabular = computed(() => tabularLangs.includes(props.lang))
 const svgLangs = ['svg']
 const isSvg = computed(() => svgLangs.includes(props.lang))
 
+const chartLangs = ['chart']
+const isChart = computed(() => chartLangs.includes(props.lang))
+
 const actionLangs = ['sql', 'graphql', 'openapi', 'oas']
 const showActions = computed(() => actionLangs.includes(props.lang))
 
@@ -105,7 +112,7 @@ const displayLang = computed(() => {
     js: 'JavaScript', ts: 'TypeScript', py: 'Python', rb: 'Ruby',
     rs: 'Rust', go: 'Go', sh: 'Shell', bash: 'Bash',
     yml: 'YAML', toml: 'TOML', graphql: 'GraphQL', sql: 'SQL',
-    json: 'JSON', xml: 'XML', css: 'CSS', html: 'HTML', md: 'Markdown',
+    json: 'JSON', xml: 'XML', css: 'CSS', html: 'HTML', md: 'Markdown', chart: 'Chart',
     latex: 'LaTeX', diff: 'Diff', dockerfile: 'Dockerfile', ini: 'INI',
     http: 'HTTP', java: 'Java', c: 'C', cpp: 'C++', cs: 'C#',
     swift: 'Swift', kt: 'Kotlin', scala: 'Scala', r: 'R',
@@ -119,7 +126,7 @@ const displayLang = computed(() => {
 const renderedHtml = ref<string | null>(null)
 
 function render(): void {
-  if (isStructured.value || isTabular.value || isSvg.value) return
+  if (isStructured.value || isTabular.value || isSvg.value || isChart.value) return
   const result = highlightCode(displayCode.value, props.lang)
   renderedHtml.value = result.html || null
 }
