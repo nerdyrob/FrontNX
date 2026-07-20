@@ -80,6 +80,10 @@ export class LmStudioService {
     return json.data ?? []
   }
 
+  private sanitizeForApi(text: string): string {
+    return text.replace(/data:image\/[a-z+]+;base64,[a-zA-Z0-9+/=]+/g, '[image omitted]')
+  }
+
   async sendChat(
     messages: ChatMessage[],
     model: string,
@@ -88,14 +92,33 @@ export class LmStudioService {
     reasoning?: boolean,
     onReasoning?: (delta: string) => void,
   ): Promise<ChatResponse> {
-    const baseMessages = messages.map(m => ({ role: m.role, content: m.content }))
+    const baseMessages = messages.map(m => ({ role: m.role, content: this.sanitizeForApi(m.content) }))
 
-    const adjustedMessages = reasoning
-      ? baseMessages
-      : [
-          { role: 'system', content: 'You are a direct assistant. Always respond directly without any thinking, reasoning, or step-by-step analysis.' },
-          ...baseMessages,
-        ]
+    const systemPrompt = [
+      { role: 'system', content: [
+        'You are a helpful assistant with access to a rich markdown renderer.',
+        'Use the following formats to make responses more readable:',
+        '',
+        '- Math: $$...$$ for display equations, $...$ for inline math (KaTeX).',
+        '- Code fences: Use ```language with any common language tag for syntax highlighting.',
+        '- Tables: Output CSV data in a ```csv or ```tsv fence for sortable/filterable tables.',
+        '- Structured data: Use ```json, ```yaml, ```toml, or ```xml fences for interactive tree views.',
+        '- Diagrams: Output SVG inside a ```svg fence for safe inline rendering.',
+        '- Images: For diagrams and charts, output SVG inside a ```svg fence (renders inline).',
+        '  Do NOT use HTML/JavaScript to draw images — it will not execute.',
+        '  Do NOT attempt to generate PNG or WebP data — only SVG text is supported.',
+        '- SQL/GraphQL: Use ```sql or ```graphql fences. Format and validate buttons are provided.',
+      ].join('\n') },
+    ]
+
+    if (!reasoning) {
+      systemPrompt.push({
+        role: 'system',
+        content: 'Always respond directly. Do not include thinking, reasoning, or step-by-step analysis in your response.',
+      })
+    }
+
+    const adjustedMessages = [...systemPrompt, ...baseMessages]
 
     const body = JSON.stringify({
       model,

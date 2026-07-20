@@ -127,6 +127,15 @@ body {
   overflow-y: hidden;
 }
 
+/* Shiki syntax highlighting — dark mode overrides */
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+}
+.dark .shiki {
+  background-color: var(--shiki-dark-bg) !important;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
