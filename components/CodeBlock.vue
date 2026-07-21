@@ -17,7 +17,7 @@
     v-else-if="isChart"
     :code="code"
   />
-  <div v-else class="code-block-wrapper my-3 rounded-lg border border-default bg-elevated overflow-hidden">
+  <div v-else class="code-block-wrapper my-3 rounded-lg border border-default bg-elevated overflow-hidden" style="max-width: 700px;">
     <div class="flex items-center justify-between px-4 py-1.5 border-b border-default bg-muted/50">
       <span class="text-[11px] font-medium text-dimmed uppercase tracking-wider">{{ displayLang }}</span>
       <div class="flex items-center gap-0.5">
@@ -41,7 +41,7 @@
       </div>
     </div>
     <div class="overflow-x-auto">
-      <div v-if="renderedHtml" class="code-block-content" v-html="renderedHtml" />
+      <div v-if="renderedHtml" class="code-block-content" style="overflow-x: auto; max-width: 100%;" v-html="renderedHtml" />
       <pre v-else class="!m-0 !border-0 !bg-transparent !rounded-none"><code class="text-sm">{{ displayCode }}</code></pre>
     </div>
   </div>
@@ -150,13 +150,11 @@ if (!renderedHtml.value && import.meta.client) {
   line-height: 1.6;
   padding: 0.75rem 1rem;
 }
-.code-block-content pre {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  border-radius: 0;
+:deep(.code-block-content pre) {
+  overflow-x: auto;
+  max-width: 100%;
 }
+
 .code-block-content code {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: inherit;
