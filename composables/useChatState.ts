@@ -57,7 +57,7 @@ export function useChatState() {
       if (!selectedModel.value && availableModels.value.length > 0) {
         selectedModel.value = availableModels.value[0].id
       }
-    } catch (err: any) {
+    } catch {
       loadError.value = `Could not connect to ${config.public.llmServerName} at ${config.public.llmServerBaseURL}. Make sure it's running.`
       availableModels.value = []
     }
@@ -184,19 +184,20 @@ export function useChatState() {
       }
 
       await saveSession()
-    } catch (err: any) {
+    } catch (err: unknown) {
       flushScheduled = false
       accContent = ''
       accReasoning = ''
       const last = findAssistant()
-      const isTimeout = err?.name === 'AbortError' && timeoutMs > 0
+      const errObject = err instanceof Error ? err : (typeof err === 'object' && err !== null ? err as Record<string, unknown> : null)
+      const isTimeout = errObject?.name === 'AbortError' && timeoutMs > 0
       if (last) {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
         last.content = isTimeout
           ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
-          : `Error: ${err.message ?? 'Request failed'}`
+          : `Error: ${(errObject && typeof errObject.message === 'string' ? errObject.message : null) ?? 'Request failed'}`
         last.responseStatus = 'incomplete'
         last.stopReason = isTimeout ? 'timeout' : undefined
       }

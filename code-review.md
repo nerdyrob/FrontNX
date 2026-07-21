@@ -32,12 +32,10 @@ An optional API key authentication middleware has been added. When `API_KEY` env
 
 The LM proxy route (`server/api/lm/[...].ts`) now enforces a 200KB request body size limit, returning 413 for oversized requests.
 
-### MEDIUM: TypeScript `any` usage masks type errors
-**Files**: `services/lm-studio.service.ts:23,52,57`, `composables/useChatState.ts:60,80,154,188`
+### MEDIUM: TypeScript `any` usage masks type errors [FIXED]
+**Files**: `services/lm-studio.service.ts`, `composables/useChatState.ts`, `server/api/lm/[...].ts`
 
-Extensive use of `any` in critical parsing functions (`extractContent`, `extractReasoning`, `extractMetrics`) and error handlers. This defeats TypeScript's type safety entirely in the most security-sensitive code paths (JSON parsing of LLM responses).
-
-**Fix**: Define interfaces for the expected LLM API response shapes and use type guards/narrowing.
+Created `types/llm-response.ts` with interfaces for OpenAI streaming chunks (`LLMResponseChunk`, `LLMDelta`, `LLMChoice`), custom event payloads (`CustomChatEndPayload`, `CustomMessageDelta`, `CustomReasoningDelta`), and metrics (`CustomStats`). Replaced all `: any` in `LmStudioService` methods (`extractContent`, `extractReasoning`, `extractMetrics`, `extractDelta`, `extractReasoningDelta`) with typed `Record<string, unknown>` parameters and proper casts. Catch blocks updated from `catch (err: any)` to `catch (err: unknown)` with `instanceof Error` checks in both `useChatState.ts` and `lm/[...].ts`.
 
 ### LOW: DOMPurify SVG profile missing event handler attributes
 **File**: `components/SvgRenderer.vue:37-43`

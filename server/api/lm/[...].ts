@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: `Proxying ${path} is not allowed` })
   }
 
-  let body: any
+  let body: Record<string, unknown> | undefined
   if (method !== 'GET' && method !== 'HEAD') {
     try {
       body = await readBody(event)
@@ -63,14 +63,15 @@ export default defineEventHandler(async (event) => {
       setResponseHeader(event, 'Cache-Control', 'no-cache')
       setResponseHeader(event, 'Connection', 'keep-alive')
 
-      const nodeStream = Readable.from(res.body as any)
+      const nodeStream = Readable.from(res.body as ReadableStream)
       return sendStream(event, nodeStream)
     }
 
     const data = await res.json()
     return data
-  } catch (err: any) {
-    if (err.cause?.code === 'ECONNREFUSED') {
+  } catch (err: unknown) {
+    const cause = err instanceof Error ? (err.cause as Record<string, unknown> | undefined) : undefined
+    if (cause?.code === 'ECONNREFUSED') {
       const name = config.public.llmServerName as string
       throw createError({
         statusCode: 503,

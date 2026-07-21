@@ -1,4 +1,8 @@
 import type { ModelOption, ChatMessage } from '../types'
+import type {
+  LLMResponseChunk,
+  CustomChatEndPayload,
+} from '../types/llm-response'
 
 export interface ChatResponseMetrics {
   processingTimeMs: number
@@ -20,47 +24,49 @@ export class LmStudioService {
     return { 'Content-Type': 'application/json' }
   }
 
-  private extractContent(json: any): string {
-    const choiceContent = json?.choices?.[0]?.message?.content
+  private extractContent(data: Record<string, unknown>): string {
+    const choiceContent = (data as LLMResponseChunk)?.choices?.[0]?.message?.content
     if (typeof choiceContent === 'string' && choiceContent.length > 0) return choiceContent
 
-    const choiceText = json?.choices?.[0]?.text
+    const choiceText = (data as LLMResponseChunk)?.choices?.[0]?.text
     if (typeof choiceText === 'string' && choiceText.length > 0) return choiceText
 
-    if (Array.isArray(json?.output)) {
-      const messageItem = json.output.find((item: any) => item?.type === 'message' && typeof item?.content === 'string')
-      if (messageItem?.content) return messageItem.content
+    if (Array.isArray(data.output)) {
+      const messageItem = (data.output as Array<Record<string, unknown>>).find(
+        (item) => item?.type === 'message' && typeof item?.content === 'string'
+      )
+      if (messageItem?.content && typeof messageItem.content === 'string') return messageItem.content
     }
 
-    if (typeof json?.content === 'string') return json.content
+    if (typeof data.content === 'string') return data.content
 
     return ''
   }
 
-  private extractReasoning(json: any): string {
-    const choiceReasoning = json?.choices?.[0]?.message?.reasoning_content
+  private extractReasoning(data: Record<string, unknown>): string {
+    const choiceReasoning = (data as LLMResponseChunk)?.choices?.[0]?.message?.reasoning_content
     if (typeof choiceReasoning === 'string' && choiceReasoning.length > 0) return choiceReasoning
 
-    const rootReasoning = json?.reasoning_content
+    const rootReasoning = data.reasoning_content
     if (typeof rootReasoning === 'string' && rootReasoning.length > 0) return rootReasoning
 
-    if (Array.isArray(json?.output)) {
-      const reasoningItems = json.output
-        .filter((item: any) => item?.type === 'reasoning' && typeof item?.content === 'string')
-        .map((item: any) => item.content)
+    if (Array.isArray(data.output)) {
+      const reasoningItems = (data.output as Array<Record<string, unknown>>)
+        .filter((item) => item?.type === 'reasoning' && typeof item?.content === 'string')
+        .map((item) => item.content as string)
       if (reasoningItems.length > 0) return reasoningItems.join('\n\n')
     }
 
     return ''
   }
 
-  private extractMetrics(json: any): ChatResponseMetrics {
-    const stats = json?.stats ?? json?.result?.stats ?? {}
-    const tokensUsed = stats.total_output_tokens ?? stats.output_tokens ?? json?.usage?.completion_tokens ?? json?.usage?.total_tokens ?? 0
-    const tokensPerSecond = stats.tokens_per_second ?? 0
-    const generationSeconds = stats.generation_time ?? (
+  private extractMetrics(data: Record<string, unknown>): ChatResponseMetrics {
+    const stats = ((data?.stats ?? (data as CustomChatEndPayload)?.result?.stats) ?? {}) as Record<string, unknown>
+    const tokensUsed = (stats.total_output_tokens ?? stats.output_tokens ?? (data as LLMResponseChunk)?.usage?.completion_tokens ?? (data as LLMResponseChunk)?.usage?.total_tokens ?? 0) as number
+    const tokensPerSecond = (stats.tokens_per_second ?? 0) as number
+    const generationSeconds = (stats.generation_time ?? (
       tokensPerSecond > 0 && tokensUsed > 0 ? tokensUsed / tokensPerSecond : 0
-    )
+    )) as number
 
     return {
       processingTimeMs: generationSeconds > 0 ? Math.round(generationSeconds * 1000) : 0,
@@ -76,7 +82,7 @@ export class LmStudioService {
     if (!res.ok) {
       throw new Error(`Failed to fetch models: ${res.status} ${res.statusText}`)
     }
-    const json = await res.json()
+    const json: { data?: ModelOption[] } = await res.json()
     return json.data ?? []
   }
 
@@ -156,52 +162,52 @@ export class LmStudioService {
     let sawFinishReason = false
     let stopReason: string | undefined
 
-    const extractDelta = (payload: any, currentEventType: string): string => {
+    function extractDelta(payload: Record<string, unknown>, currentEventType: string): string {
       if (currentEventType === 'message.delta' && typeof payload?.content === 'string') {
-        return payload.content
+        return payload.content as string
       }
-      const deltaContent = payload?.choices?.[0]?.delta?.content
+      const deltaContent = (payload as LLMResponseChunk)?.choices?.[0]?.delta?.content
       if (typeof deltaContent === 'string') return deltaContent
-      const textChunk = payload?.choices?.[0]?.text
+      const textChunk = (payload as LLMResponseChunk)?.choices?.[0]?.text
       if (typeof textChunk === 'string') return textChunk
       return ''
     }
 
-    const extractReasoningDelta = (payload: any, currentEventType: string): string => {
+    function extractReasoningDelta(payload: Record<string, unknown>, currentEventType: string): string {
       if (currentEventType === 'reasoning.delta' && typeof payload?.content === 'string') {
-        return payload.content
+        return payload.content as string
       }
-      const reasoningDelta = payload?.choices?.[0]?.delta?.reasoning_content
+      const reasoningDelta = (payload as LLMResponseChunk)?.choices?.[0]?.delta?.reasoning_content
       if (typeof reasoningDelta === 'string') return reasoningDelta
       return ''
     }
 
-    const applyMetrics = (payload: any, currentEventType: string) => {
+    const applyMetrics = (payload: Record<string, unknown>, currentEventType: string) => {
       if (currentEventType === 'chat.end') {
         sawChatEnd = true
-        const extracted = this.extractMetrics(payload?.result ?? payload)
+        const extracted = this.extractMetrics((payload as CustomChatEndPayload)?.result ?? payload)
         metrics = extracted
-        const reason = payload?.result?.stats?.stop_reason ?? payload?.stats?.stop_reason
+        const reason = (payload as CustomChatEndPayload)?.result?.stats?.stop_reason ?? (payload as CustomChatEndPayload)?.stats?.stop_reason
         if (typeof reason === 'string' && reason.length > 0) stopReason = reason
         return
       }
 
-      if (payload?.stats || payload?.usage || payload?.result?.stats) {
+      if (payload?.stats || (payload as LLMResponseChunk)?.usage || (payload as CustomChatEndPayload)?.result?.stats) {
         metrics = this.extractMetrics(payload)
-        const reason = payload?.stats?.stop_reason ?? payload?.result?.stats?.stop_reason
+        const reason = (payload as CustomChatEndPayload)?.stats?.stop_reason ?? (payload as CustomChatEndPayload)?.result?.stats?.stop_reason
         if (typeof reason === 'string' && reason.length > 0) stopReason = reason
       }
     }
 
-    const maybeApplyFinalContent = (payload: any, currentEventType: string) => {
+    const maybeApplyFinalContent = (payload: Record<string, unknown>, currentEventType: string) => {
       if (currentEventType === 'chat.end' && !fullContent) {
-        const resultPayload = payload?.result ?? payload
+        const resultPayload = (payload as CustomChatEndPayload)?.result ?? payload
         const fallbackContent = this.extractContent(resultPayload)
         if (fallbackContent) fullContent = fallbackContent
       }
 
       if (currentEventType === 'chat.end' && !fullReasoning) {
-        const resultPayload = payload?.result ?? payload
+        const resultPayload = (payload as CustomChatEndPayload)?.result ?? payload
         const fallbackReasoning = this.extractReasoning(resultPayload)
         if (fallbackReasoning) fullReasoning = fallbackReasoning
       }
@@ -210,12 +216,16 @@ export class LmStudioService {
     const processPayload = (rawPayload: string, currentEventType: string) => {
       if (!rawPayload || rawPayload === '[DONE]') return
       try {
-        const payload = JSON.parse(rawPayload)
-        const finishReason = payload?.choices?.[0]?.finish_reason
+        const parsed: unknown = JSON.parse(rawPayload)
+        if (typeof parsed !== 'object' || parsed === null) return
+        const payload = parsed as Record<string, unknown>
+
+        const finishReason = (payload as LLMResponseChunk)?.choices?.[0]?.finish_reason
         if (typeof finishReason === 'string' && finishReason.length > 0) {
           sawFinishReason = true
           stopReason = finishReason
         }
+
         const delta = extractDelta(payload, currentEventType)
         if (delta) {
           fullContent += delta
@@ -226,6 +236,7 @@ export class LmStudioService {
           fullReasoning += reasoningDelta
           onReasoning?.(reasoningDelta)
         }
+
         maybeApplyFinalContent(payload, currentEventType)
         applyMetrics(payload, currentEventType)
       } catch {
@@ -268,7 +279,6 @@ export class LmStudioService {
         if (trimmed.startsWith('data: ')) {
           const payload = trimmed.slice(6)
           if (!eventType) {
-            // OpenAI-style SSE often omits explicit event names; handle each data frame directly.
             if (payload === '[DONE]') {
               sawDone = true
               continue
