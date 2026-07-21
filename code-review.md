@@ -37,6 +37,8 @@ The LM proxy route (`server/api/lm/[...].ts`) now enforces a 200KB request body 
 
 Created `types/llm-response.ts` with interfaces for OpenAI streaming chunks (`LLMResponseChunk`, `LLMDelta`, `LLMChoice`), custom event payloads (`CustomChatEndPayload`, `CustomMessageDelta`, `CustomReasoningDelta`), and metrics (`CustomStats`). Replaced all `: any` in `LmStudioService` methods (`extractContent`, `extractReasoning`, `extractMetrics`, `extractDelta`, `extractReasoningDelta`) with typed `Record<string, unknown>` parameters and proper casts. Catch blocks updated from `catch (err: any)` to `catch (err: unknown)` with `instanceof Error` checks in both `useChatState.ts` and `lm/[...].ts`.
 
+
+
 ### LOW: DOMPurify SVG profile missing event handler attributes
 **File**: `components/SvgRenderer.vue:37-43`
 
@@ -48,6 +50,8 @@ The `FORBID_ATTR` list only covers `onerror`, `onload`, `onclick`, `onmouseover`
 **Files**: `components/ChatMessage.vue:173`, `components/CodeBlock.vue:72`
 
 The Clipboard API fallback (`document.execCommand`) was deprecated in 2020. While it still works in most browsers, it's being removed. The try/catch already handles this gracefully but the fallback creates unnecessary DOM manipulation.
+
+
 
 ---
 
@@ -78,6 +82,16 @@ The catch block now checks `currentSessionPath.value` before calling `saveSessio
 
 `extractPreview()` converted to async using `readFile` (promises API). `list()` uses `Promise.all` for concurrent reads across all session files, unblocking the event loop. Parse failures now logged via `console.warn` with the file path and error, instead of silent catch.
 
+### MEDIUM: SSE buffer drops trailing data lines from custom event streams [FIXED]
+**File**: `services/lm-studio.service.ts`
+
+The SSE parser's `lines.pop()` moves the last line (without trailing `\n`) into a `buffer` variable, but if the stream ends before another chunk arrives, that buffered line is never processed. Custom event SSE streams that end with a `data:` line followed by `EOF` (no trailing blank line) would silently drop their final event — including `chat.end` events carrying metrics and status.
+
+**Fix**: After the read loop, process any remaining `buffer` content as a `data:` line before flushing the pending event. This ensures final events with no trailing newline are properly handled.
+
+
+
+
 ### LOW: `ChartRenderer` registers Chart.js components globally at module scope
 **File**: `components/ChartRenderer.vue:46-50`
 
@@ -88,17 +102,12 @@ The catch block now checks `currentSessionPath.value` before calling `saveSessio
 
 Uses `window.confirm()` which blocks the JS thread, doesn't match the app's design system, and doesn't support cancellation properly in all browsers. Replace with a Nuxt UI modal.
 
-### MEDIUM: SSE buffer drops trailing data lines from custom event streams [FIXED]
-**File**: `services/lm-studio.service.ts`
-
-The SSE parser's `lines.pop()` moves the last line (without trailing `\n`) into a `buffer` variable, but if the stream ends before another chunk arrives, that buffered line is never processed. Custom event SSE streams that end with a `data:` line followed by `EOF` (no trailing blank line) would silently drop their final event — including `chat.end` events carrying metrics and status.
-
-**Fix**: After the read loop, process any remaining `buffer` content as a `data:` line before flushing the pending event. This ensures final events with no trailing newline are properly handled.
-
 ### LOW: `crypto.randomUUID` fallback not cryptographically secure
 **Files**: `composables/useChatState.ts:6-12`, `services/session.service.ts:76-82`
 
 The `uid()` fallback uses `Math.random()` which is not suitable for unique IDs that might be used as session identifiers. Since this runs in a browser/Nitro context where `crypto.randomUUID()` is available, the fallback may never execute, but consider removing it or using a proper polyfill.
+
+
 
 ---
 
@@ -119,12 +128,12 @@ Added `content-visibility: auto; contain-intrinsic-size: auto 200px` to ChatMess
 
 Removed the top-level `ensureHighlighter()` call. Shiki is now only loaded lazily when the first `CodeBlock` component mounts (the existing fallback at `CodeBlock.vue:140-144` already handles this). This saves ~2-5MB of compressed JS from being loaded on initial page load if no code blocks are displayed.
 
-### MEDIUM: `DataTable` parses entire dataset in computed, no pagination at data level
-**File**: `components/DataTable.vue:149-156`
+### MEDIUM: `DataTable` parses entire dataset in computed, no pagination at data level [FIXED]
+**File**: `components/DataTable.vue`
 
-PapaParse parses the entire CSV string in a computed property. For large CSV files (e.g., 100k+ rows), this creates a massive JavaScript array and all rows are held in memory. TanStack Table provides client-side pagination but the data is still fully parsed.
+Added a `MAX_ROWS` constant (5000). When parsed data exceeds the limit, only the first 5000 rows are passed to TanStack Table. An amber warning banner appears showing "Showing first 5,000 of N rows" with a suggestion to export CSV for the full dataset. The row count display in the header also shows both filtered and total counts when truncated.
 
-**Fix**: Add a configurable maximum row limit. For very large datasets, warn the user or truncate.
+
 
 ### LOW: Session list re-fetched after every save
 **File**: `pages/index.vue:177-179`
@@ -137,6 +146,8 @@ PapaParse parses the entire CSV string in a computed property. For large CSV fil
 **File**: `components/ChatInput.vue:95-97`
 
 Every keystroke triggers `watch(text)` → `nextTick(() => resizeTextarea())`. This adds a microtask per character. The `@input` handler already calls `resizeTextarea`, so the watch is redundant for user typing. Consider placing it only for programmatic changes.
+
+
 
 ---
 

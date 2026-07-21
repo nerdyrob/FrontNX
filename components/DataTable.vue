@@ -12,7 +12,7 @@
         />
       </div>
       <div class="flex items-center gap-2 text-xs text-dimmed">
-        <span>{{ table.getFilteredRowModel().rows.length }} rows</span>
+        <span>{{ table.getFilteredRowModel().rows.length }}{{ truncated ? ` of ${rawData.length.toLocaleString()}` : '' }} rows</span>
         <span class="w-px h-3 bg-default" />
         <select
           :value="pagination.pageSize"
@@ -36,6 +36,9 @@
           @click="exportCsv"
         />
       </div>
+    </div>
+    <div v-if="truncated" class="px-4 py-1.5 text-[11px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-b border-default">
+      Showing first {{ MAX_ROWS.toLocaleString() }} of {{ rawData.length.toLocaleString() }} rows. Export to CSV for full dataset.
     </div>
     <div class="overflow-x-auto">
       <table class="w-full border-collapse text-sm">
@@ -140,6 +143,8 @@ const props = defineProps<{
   lang: string
 }>()
 
+const MAX_ROWS = 5000
+
 const separator = computed(() => props.lang === 'tsv' ? '\t' : ',')
 
 interface Row {
@@ -167,7 +172,13 @@ const columns = computed(() => {
   )
 })
 
-const data = computed(() => parsed.value.data)
+const rawData = computed(() => parsed.value.data)
+const truncated = computed(() => rawData.value.length > MAX_ROWS)
+
+const data = computed(() => {
+  if (rawData.value.length <= MAX_ROWS) return rawData.value
+  return rawData.value.slice(0, MAX_ROWS)
+})
 
 const sorting = ref<SortingState>([])
 const globalFilter = ref('')
