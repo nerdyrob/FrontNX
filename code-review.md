@@ -114,12 +114,10 @@ Rather than debouncing at the renderer level (which risks laggy display), the fi
 
 Added `content-visibility: auto; contain-intrinsic-size: auto 200px` to ChatMessage's root. This CSS-only hint tells the browser to skip painting off-screen messages while keeping them in normal flow — zero layout changes, all spacing preserved. No JS library needed. Degrades gracefully in unsupported browsers.
 
-### MEDIUM: Shiki highlighter loads eagerly at module import time
-**File**: `utils/highlighter.ts:28`
+### MEDIUM: Shiki highlighter loads eagerly at module import time [FIXED]
+**File**: `utils/highlighter.ts`
 
-`ensureHighlighter()` is called at module evaluation time (top-level), loading all 32 languages and 2 themes. Shiki with this many languages can be 2-5MB compressed. This delays initial page load even if the user never sees a code block.
-
-**Fix**: Only call `ensureHighlighter()` when a `CodeBlock` component is actually mounted (it already does this as a fallback at `CodeBlock.vue:140-144`). Remove the top-level call at line 28.
+Removed the top-level `ensureHighlighter()` call. Shiki is now only loaded lazily when the first `CodeBlock` component mounts (the existing fallback at `CodeBlock.vue:140-144` already handles this). This saves ~2-5MB of compressed JS from being loaded on initial page load if no code blocks are displayed.
 
 ### MEDIUM: `DataTable` parses entire dataset in computed, no pagination at data level
 **File**: `components/DataTable.vue:149-156`

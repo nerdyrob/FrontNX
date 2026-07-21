@@ -25,8 +25,6 @@ export function ensureHighlighter(): Promise<Highlighter> {
   return loading
 }
 
-ensureHighlighter()
-
 export function highlightCode(code: string, lang: string): { html: string } {
   if (!highlighter) return { html: '' }
   try {

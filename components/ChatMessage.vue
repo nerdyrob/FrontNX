@@ -124,7 +124,7 @@ const timestamp = computed(() => {
 })
 
 const showProgressDots = computed(() => {
-  return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.createdAt)
+  return Boolean(props.isLast && props.message.role === 'assistant' && !props.message.content)
 })
 
 const showIncompleteNotice = computed(() => {
