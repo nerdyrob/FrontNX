@@ -84,11 +84,12 @@ export function useChatState() {
     isStreaming.value = true
 
     const assistantId = uid()
+    const now = new Date().toISOString()
     const assistantMsg: ChatMessage = {
       id: assistantId,
       role: 'assistant',
       content: '',
-      createdAt: '',
+      createdAt: now,
     }
     messages.value.push(assistantMsg)
     const startedAt = Date.now()
@@ -111,9 +112,6 @@ export function useChatState() {
       flushScheduled = false
       const msg = findAssistant()
       if (!msg) return
-      if (!msg.createdAt) {
-        msg.createdAt = new Date().toISOString()
-      }
       if (accContent) {
         msg.content += accContent
         accContent = ''

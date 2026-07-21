@@ -63,10 +63,10 @@ The assistant message ID is captured at stream start via `uid()`. A `findAssista
 
 `saveSession()` now builds the markdown content first, then creates or rewrites the file, and only sets `currentSessionPath.value` after both the create AND rewrite succeed. If the rewrite fails, no path is stored and a subsequent save attempt will create a fresh file.
 
-### MEDIUM: Empty assistant message with no timestamp if send fails instantly
-**File**: `composables/useChatState.ts:86-96, 154-167`
+### MEDIUM: Empty assistant message with no timestamp if send fails instantly [FIXED]
+**File**: `composables/useChatState.ts`
 
-An empty assistant message is pushed with `createdAt: ''` before streaming starts (line 90). If the `sendChat` call throws before any content arrives, the error handler checks `if (last.role === 'assistant')` and sets content/status but never sets `createdAt` if it's already set to a falsey value. It does set it (line 158) in the catch block now — actually, re-reading, it does set `last.createdAt` at line 158. This is fine. However, the empty message with no content could briefly flash "Thinking..." in the UI before the error content replaces it.
+`createdAt` is now set to `new Date().toISOString()` at message creation time (before the message is pushed to the array), rather than deferred until the first streaming chunk arrives. This ensures every assistant message has a timestamp immediately, eliminating the flash of an empty timestamp in the UI when streaming starts or fails instantly.
 
 ### MEDIUM: `saveSession` creates a new session file on every error recovery
 **File**: `composables/useChatState.ts:154-176`
