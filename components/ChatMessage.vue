@@ -1,5 +1,5 @@
 <template>
-  <div class="group relative animate-in" style="content-visibility: auto; contain-intrinsic-size: auto 200px;">
+  <div class="group relative animate-in">
     <!-- User message -->
     <div v-if="message.role === 'user'" class="flex gap-3">
       <div class="flex-1 max-w-none">
@@ -72,9 +72,9 @@
             @click="copyMessage"
           />
         </div>
-        <details v-if="thinkingContent" class="pl-9 mb-2 rounded-lg transition-colors max-w-[750px] [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60 [&[open]]:p-3" :open="!!streaming">
-          <summary class="text-[11px] text-dimmed cursor-pointer select-none hover:text-highlighted">Thought process</summary>
-          <div class="mt-2 text-sm leading-relaxed prose-message overflow-x-auto max-w-full">
+        <details v-if="thinkingContent" class="ml-9 mb-2 rounded-lg transition-colors max-w-[750px] [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60" :open="!!streaming">
+          <summary class="text-[11px] text-dimmed cursor-pointer select-none hover:text-highlighted mt-3 mx-3">Thought process</summary>
+          <div class="mx-3 mb-3 text-sm leading-relaxed prose-message break-words max-w-full">
             <MarkdownRenderer :content="thinkingContent" />
           </div>
         </details>
