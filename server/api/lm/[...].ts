@@ -1,5 +1,10 @@
 import { Readable } from 'node:stream'
 
+const ALLOWED_LM_PATHS = new Set([
+  'v0/models',
+  'v0/chat/completions',
+])
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const base = config.public.llmServerBaseURL.replace(/\/+$/, '')
@@ -9,6 +14,12 @@ export default defineEventHandler(async (event) => {
     : `${base}/${path}`
 
   const method = event.method
+
+  // Restrict proxied paths to known-safe endpoints
+  const normalizedPath = path.replace(/^api\//, '')
+  if (!ALLOWED_LM_PATHS.has(normalizedPath)) {
+    throw createError({ statusCode: 403, message: `Proxying ${path} is not allowed` })
+  }
 
   let body: any
   if (method !== 'GET' && method !== 'HEAD') {
@@ -26,6 +37,8 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 413, message: 'Request too large' })
     }
   }
+
+  checkRateLimit(event)
 
   try {
     const res = await fetch(target, {

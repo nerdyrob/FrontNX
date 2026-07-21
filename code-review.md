@@ -15,18 +15,10 @@ All session CRUD endpoints accept a `path` parameter from the client and pass it
 
 **Tests added**: `tests/repositories/session-fs.repository.spec.ts` — 4 new tests covering read/write/delete/append with `../../etc/passwd` and `/etc/passwd` paths.
 
-### HIGH: LLM proxy is an open relay
-**File**: `server/api/lm/[...].ts`
+### HIGH: LLM proxy is an open relay [FIXED]
+**Files**: `server/api/lm/[...].ts`, `server/middleware/auth.ts`, `server/utils/rate-limit.ts`
 
-The catch-all proxy forwards any request to the configured LLM server with zero authentication, rate limiting, or path restrictions. Any client that can reach this server can use it as a relay to the LLM backend, potentially exhausting quotas, sending abusive content, or probing internal services.
-
-**Fix**: Add authentication (even a simple API key check via environment variable) and rate limiting. Consider restricting accepted methods and paths. Implement request size limits.
-```ts
-// Add early in the handler
-if (body && JSON.stringify(body).length > 100_000) {
-  throw createError({ statusCode: 413, message: 'Request too large' })
-}
-```
+The proxy now enforces four layers: (1) optional API key auth via `server/middleware/auth.ts`, (2) path allowlist restricted to `v0/models` and `v0/chat/completions` only, (3) in-memory rate limiting (60 req/min per IP) via `server/utils/rate-limit.ts`, (4) 200KB request body size limit.
 
 ### HIGH: No input validation on server API routes [FIXED]
 **Files**: `server/utils/validation.ts`, all `server/api/session/` routes
