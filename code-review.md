@@ -60,12 +60,10 @@ The Clipboard API fallback (`document.execCommand`) was deprecated in 2020. Whil
 
 The assistant message ID is captured at stream start via `uid()`. A `findAssistant()` function locates the message by ID instead of using `messages.value.length - 1`. All three mutation points (`flushAccumulator`, success path, error path) use `findAssistant()` and gracefully no-op if the message was deleted.
 
-### HIGH: Error during first save creates orphaned session file
-**File**: `composables/useChatState.ts:212-237`
+### HIGH: Error during first save creates orphaned session file [FIXED]
+**File**: `composables/useChatState.ts`
 
-`saveSession()` creates a new session file via POST (line 219-222), then immediately rewrites it. If the rewrite fails, the file exists but `currentSessionPath.value` is already set. The next save will rewrite without creating a new file, so recovery is possible, but if the user refreshes before the next save, the orphan exists.
-
-**Fix**: Only set `currentSessionPath.value` after the first rewrite succeeds. Consider using the append endpoint for incremental streaming saves instead of full rewrites.
+`saveSession()` now builds the markdown content first, then creates or rewrites the file, and only sets `currentSessionPath.value` after both the create AND rewrite succeed. If the rewrite fails, no path is stored and a subsequent save attempt will create a fresh file.
 
 ### MEDIUM: Empty assistant message with no timestamp if send fails instantly
 **File**: `composables/useChatState.ts:86-96, 154-167`

@@ -246,7 +246,19 @@ export function useChatState() {
   }
 
   async function saveSession() {
-    if (!currentSessionPath.value) {
+    const content = sessionService.buildMarkdown(messages.value, {
+      model: selectedModel.value,
+      service: config.public.llmServerName,
+      created: new Date().toISOString(),
+    })
+
+    const path = currentSessionPath.value
+    if (path) {
+      await $fetch('/api/session/rewrite', {
+        method: 'POST',
+        body: { path, content },
+      })
+    } else {
       const meta = {
         model: selectedModel.value,
         service: config.public.llmServerName,
@@ -256,19 +268,13 @@ export function useChatState() {
         method: 'POST',
         body: { meta },
       })
+      // Only store the path after the content rewrite succeeds
+      await $fetch('/api/session/rewrite', {
+        method: 'POST',
+        body: { path: res.path, content },
+      })
       currentSessionPath.value = res.path
     }
-
-    const content = sessionService.buildMarkdown(messages.value, {
-      model: selectedModel.value,
-      service: config.public.llmServerName,
-      created: new Date().toISOString(),
-    })
-
-    await $fetch('/api/session/rewrite', {
-      method: 'POST',
-      body: { path: currentSessionPath.value, content },
-    })
     sessionRefreshTick.value++
   }
 
