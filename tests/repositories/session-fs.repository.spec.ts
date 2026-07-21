@@ -14,6 +14,43 @@ afterEach(async () => {
 })
 
 describe('SessionFsRepository', () => {
+  it('blocks path traversal in read', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+
+    await expect(repository.read('../../etc/passwd')).rejects.toThrow('Path traversal')
+    await expect(repository.read('/etc/passwd')).rejects.toThrow('Path traversal')
+  })
+
+  it('blocks path traversal in write', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+
+    await expect(repository.write('/tmp/evil.md', 'content')).rejects.toThrow('Path traversal')
+  })
+
+  it('blocks path traversal in delete', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+
+    await expect(repository.delete('../../etc/passwd')).rejects.toThrow('Path traversal')
+  })
+
+  it('blocks path traversal in append', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+
+    await expect(repository.append('../../../etc/passwd', 'block')).rejects.toThrow('Path traversal')
+  })
+
   it('aggregates session token and processing totals from assistant messages', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
     tempDirs.push(tempDir)

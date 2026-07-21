@@ -19,6 +19,14 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Prevent large request bodies from being proxied
+  if (body) {
+    const size = new TextEncoder().encode(JSON.stringify(body)).length
+    if (size > 200_000) {
+      throw createError({ statusCode: 413, message: 'Request too large' })
+    }
+  }
+
   try {
     const res = await fetch(target, {
       method,

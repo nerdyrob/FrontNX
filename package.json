@@ -10,7 +10,9 @@
     "build:sea": "npm run build && node scripts/build-sea.mjs",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "nuxt lint",
+    "typecheck": "npx nuxi typecheck"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
@@ -33,12 +35,15 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.117",
+    "@nuxt/eslint": "^1.16.0",
     "@nuxt/test-utils": "^3.17.0",
     "@types/dompurify": "^3.0.5",
     "@types/katex": "^0.16.8",
     "@types/markdown-it": "^14.1.2",
+    "@types/node": "^26.1.1",
     "@vue/test-utils": "^2.4.0",
     "happy-dom": "^17.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "vue-tsc": "^3.3.7"
   }
 }

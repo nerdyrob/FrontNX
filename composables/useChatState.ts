@@ -97,28 +97,56 @@ export function useChatState() {
       ? setTimeout(() => requestController.abort(), timeoutMs)
       : null
 
+    // Accumulate streaming deltas and flush at display refresh rate
+    let accContent = ''
+    let accReasoning = ''
+    let flushScheduled = false
+
+    function flushAccumulator() {
+      flushScheduled = false
+      const last = messages.value[messages.value.length - 1]
+      if (last.role !== 'assistant') return
+      if (!last.createdAt) {
+        last.createdAt = new Date().toISOString()
+      }
+      if (accContent) {
+        last.content += accContent
+        accContent = ''
+      }
+      if (accReasoning) {
+        last.thinking = (last.thinking ?? '') + accReasoning
+        accReasoning = ''
+      }
+    }
+
+    function scheduleFlush() {
+      if (flushScheduled) return
+      flushScheduled = true
+      if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(flushAccumulator)
+      } else {
+        setTimeout(flushAccumulator, 50)
+      }
+    }
+
     try {
       const response = await lmStudio.sendChat(
         messages.value.slice(0, -1),
         selectedModel.value,
         (delta) => {
-          const last = messages.value[messages.value.length - 1]
-          if (last.role === 'assistant') {
-            if (!last.createdAt) {
-              last.createdAt = new Date().toISOString()
-            }
-            last.content += delta
-          }
+          accContent += delta
+          scheduleFlush()
         },
         requestController.signal,
         thinkingEnabled.value,
         (reasoningDelta) => {
-          const last = messages.value[messages.value.length - 1]
-          if (last.role === 'assistant') {
-            last.thinking = (last.thinking ?? '') + reasoningDelta
-          }
+          accReasoning += reasoningDelta
+          scheduleFlush()
         },
       )
+
+      // Flush any remaining accumulated content
+      flushAccumulator()
 
       const last = messages.value[messages.value.length - 1]
       if (last.role === 'assistant') {
@@ -152,6 +180,9 @@ export function useChatState() {
 
       await saveSession()
     } catch (err: any) {
+      flushScheduled = false
+      accContent = ''
+      accReasoning = ''
       const last = messages.value[messages.value.length - 1]
       const isTimeout = err?.name === 'AbortError' && timeoutMs > 0
       if (last.role === 'assistant') {

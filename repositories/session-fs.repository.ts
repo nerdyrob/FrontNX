@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, renameSync, readFileSync } from 'node:fs'
 import { readFile, writeFile, appendFile, unlink } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
 import { SessionService } from '../services/session.service'
@@ -59,6 +59,17 @@ export class SessionFsRepository implements ISessionRepository {
     }
   }
 
+  private resolveSafePath(userPath: string): string {
+    const normalized = resolve(this.baseDir, userPath)
+    if (!normalized.startsWith(this.baseDir)) {
+      throw new Error(`Path traversal blocked: ${userPath}`)
+    }
+    if (!normalized.endsWith('.md')) {
+      throw new Error(`Invalid file type: only .md files are allowed`)
+    }
+    return normalized
+  }
+
   async create(meta: SessionMeta): Promise<string> {
     const filename = `${toShortTimestamp(meta.created)}.md`
     const filePath = join(this.baseDir, filename)
@@ -78,15 +89,15 @@ export class SessionFsRepository implements ISessionRepository {
   }
 
   async read(path: string): Promise<string> {
-    return readFile(path, 'utf-8')
+    return readFile(this.resolveSafePath(path), 'utf-8')
   }
 
   async write(path: string, content: string): Promise<void> {
-    await writeFile(path, content, 'utf-8')
+    await writeFile(this.resolveSafePath(path), content, 'utf-8')
   }
 
   async append(path: string, block: string): Promise<void> {
-    await appendFile(path, block + '\n', 'utf-8')
+    await appendFile(this.resolveSafePath(path), block + '\n', 'utf-8')
   }
 
   async list(): Promise<SessionListItem[]> {
@@ -121,6 +132,6 @@ export class SessionFsRepository implements ISessionRepository {
   }
 
   async delete(path: string): Promise<void> {
-    await unlink(path)
+    await unlink(this.resolveSafePath(path))
   }
 }

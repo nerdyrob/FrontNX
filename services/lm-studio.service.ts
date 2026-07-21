@@ -281,6 +281,23 @@ export class LmStudioService {
       }
     }
 
+    // Process any remaining line in the buffer (no trailing newline)
+    if (buffer) {
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ')) {
+        const payload = trimmed.slice(6)
+        if (!eventType) {
+          if (payload === '[DONE]') {
+            sawDone = true
+          } else {
+            processPayload(payload, '')
+          }
+        } else {
+          eventData.push(payload)
+        }
+      }
+    }
+
     // Flush any trailing frame not followed by a blank line.
     flushEvent()
 

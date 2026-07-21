@@ -100,7 +100,7 @@ function extractBase64Images(html: string): { text: string; images: { src: strin
 const segments = computed<Segment[]>(() => {
   if (!props.content) return []
 
-    const codeFenceChunks: string[] = []
+  const codeFenceChunks: string[] = []
   const afterLatexNorm = normalizeBracketedLatex(props.content)
 
   const protectedFromMath = afterLatexNorm
