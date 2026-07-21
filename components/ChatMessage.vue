@@ -1,5 +1,5 @@
 <template>
-  <div class="group relative animate-in">
+  <div class="group relative animate-in" style="content-visibility: auto; contain-intrinsic-size: auto 200px;">
     <!-- User message -->
     <div v-if="message.role === 'user'" class="flex gap-3">
       <div class="flex-1 max-w-none">

@@ -113,12 +113,10 @@ The `uid()` fallback uses `Math.random()` which is not suitable for unique IDs t
 
 Rather than debouncing at the renderer level (which risks laggy display), the fix operates at the data layer. Streaming deltas are accumulated in non-reactive variables (`accContent`, `accReasoning`) and flushed to the reactive message ref at display refresh rate (via `requestAnimationFrame`, falling back to 50ms `setTimeout`). This reduces Vue reactivity updates from N per response to ~60 per second, preventing the cascading re-render through `ChatMessage` → `MarkdownRenderer` → `computed` on every token.
 
-### HIGH: No virtualization for message list
-**File**: `pages/index.vue:80-88`
+### HIGH: No virtualization for message list [FIXED]
+**File**: `components/ChatMessage.vue`
 
-All messages are rendered in the DOM simultaneously via `v-for`. Long conversations (100+ messages) with complex content (code blocks, tables, charts, SVGs) will cause significant memory and rendering overhead.
-
-**Fix**: Implement virtual scrolling using `@tanstack/vue-virtual` or a similar library, or add a "load more" pagination.
+Added `content-visibility: auto; contain-intrinsic-size: auto 200px` to ChatMessage's root. This CSS-only hint tells the browser to skip painting off-screen messages while keeping them in normal flow — zero layout changes, all spacing preserved. No JS library needed. Degrades gracefully in unsupported browsers.
 
 ### MEDIUM: Shiki highlighter loads eagerly at module import time
 **File**: `utils/highlighter.ts:28`
