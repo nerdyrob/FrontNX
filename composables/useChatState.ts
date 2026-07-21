@@ -200,10 +200,13 @@ export function useChatState() {
         last.stopReason = isTimeout ? 'timeout' : undefined
       }
 
-      try {
-        await saveSession()
-      } catch (saveErr) {
-        console.error('Failed to save errored session:', saveErr)
+      // Only persist if a session already exists (avoid creating orphaned error-only files)
+      if (currentSessionPath.value) {
+        try {
+          await saveSession()
+        } catch (saveErr) {
+          console.error('Failed to save errored session:', saveErr)
+        }
       }
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)

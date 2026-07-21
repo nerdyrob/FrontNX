@@ -68,10 +68,10 @@ The assistant message ID is captured at stream start via `uid()`. A `findAssista
 
 `createdAt` is now set to `new Date().toISOString()` at message creation time (before the message is pushed to the array), rather than deferred until the first streaming chunk arrives. This ensures every assistant message has a timestamp immediately, eliminating the flash of an empty timestamp in the UI when streaming starts or fails instantly.
 
-### MEDIUM: `saveSession` creates a new session file on every error recovery
-**File**: `composables/useChatState.ts:154-176`
+### MEDIUM: `saveSession` creates a new session file on every error recovery [FIXED]
+**File**: `composables/useChatState.ts`
 
-If streaming fails and `saveSession()` is called in the catch block (line 168-172), it may trigger another save that creates a new session file if `currentSessionPath` was never set (e.g., the first create POST succeeded but `currentSessionPath` wasn't assigned because... actually it is assigned at line 223). However, if the chat errored before the first user-message save completed, `currentSessionPath` would be null and the error save would create a new, empty session file.
+The catch block now checks `currentSessionPath.value` before calling `saveSession()`. If no session was ever persisted (streaming failed before the first save completed), the error save is skipped entirely — avoiding orphaned session files containing only an error message.
 
 ### MEDIUM: `list()` uses blocking `readFileSync`
 **File**: `repositories/session-fs.repository.ts:105`
