@@ -83,14 +83,19 @@ export function useChatState() {
 
     isStreaming.value = true
 
+    const assistantId = uid()
     const assistantMsg: ChatMessage = {
-      id: uid(),
+      id: assistantId,
       role: 'assistant',
       content: '',
       createdAt: '',
     }
     messages.value.push(assistantMsg)
     const startedAt = Date.now()
+
+    function findAssistant(): ChatMessage | undefined {
+      return messages.value.find((m) => m.id === assistantId)
+    }
     const timeoutMs = Number(config.public.chatRequestTimeoutMs ?? 0)
     const requestController = new AbortController()
     const timeoutHandle = timeoutMs > 0
@@ -104,17 +109,17 @@ export function useChatState() {
 
     function flushAccumulator() {
       flushScheduled = false
-      const last = messages.value[messages.value.length - 1]
-      if (last.role !== 'assistant') return
-      if (!last.createdAt) {
-        last.createdAt = new Date().toISOString()
+      const msg = findAssistant()
+      if (!msg) return
+      if (!msg.createdAt) {
+        msg.createdAt = new Date().toISOString()
       }
       if (accContent) {
-        last.content += accContent
+        msg.content += accContent
         accContent = ''
       }
       if (accReasoning) {
-        last.thinking = (last.thinking ?? '') + accReasoning
+        msg.thinking = (msg.thinking ?? '') + accReasoning
         accReasoning = ''
       }
     }
@@ -148,8 +153,8 @@ export function useChatState() {
       // Flush any remaining accumulated content
       flushAccumulator()
 
-      const last = messages.value[messages.value.length - 1]
-      if (last.role === 'assistant') {
+      const last = findAssistant()
+      if (last) {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
@@ -183,9 +188,9 @@ export function useChatState() {
       flushScheduled = false
       accContent = ''
       accReasoning = ''
-      const last = messages.value[messages.value.length - 1]
+      const last = findAssistant()
       const isTimeout = err?.name === 'AbortError' && timeoutMs > 0
-      if (last.role === 'assistant') {
+      if (last) {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }

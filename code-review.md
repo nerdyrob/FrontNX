@@ -55,12 +55,10 @@ The Clipboard API fallback (`document.execCommand`) was deprecated in 2020. Whil
 
 ## Potential Bugs
 
-### HIGH: Race condition during streaming deletion
-**File**: `composables/useChatState.ts:101-112`
+### HIGH: Race condition during streaming deletion [FIXED]
+**File**: `composables/useChatState.ts`
 
-The stream callback accesses `messages.value[messages.value.length - 1]` to append deltas. If a message is deleted during streaming (via `deleteMessage`), the wrong message could receive content, or the index could be out of bounds.
-
-**Fix**: Capture a reference to the assistant message ID at the start of streaming and find the message by ID in the callback, or lock deletions while streaming.
+The assistant message ID is captured at stream start via `uid()`. A `findAssistant()` function locates the message by ID instead of using `messages.value.length - 1`. All three mutation points (`flushAccumulator`, success path, error path) use `findAssistant()` and gracefully no-op if the message was deleted.
 
 ### HIGH: Error during first save creates orphaned session file
 **File**: `composables/useChatState.ts:212-237`
