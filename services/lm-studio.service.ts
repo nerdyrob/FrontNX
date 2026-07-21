@@ -107,7 +107,7 @@ export class LmStudioService {
         '',
         '- Math: $$...$$ for display equations, $...$ for inline math (KaTeX).',
         '- Code fences: Use ```language with any common language tag for syntax highlighting.',
-        '- Tables: Output CSV data in a ```csv or ```tsv fence for sortable/filterable tables.',
+        '- Tables: Output CSV data in a ```csv or ```tsv fence for sortable/filterable tables. Do not use LaTeX ($...$ or $$...$$) inside table cells — table cells display plain text only.',
         '- Structured data: Use ```json, ```yaml, ```toml, or ```xml fences for interactive tree views.',
         '- Diagrams: Output SVG inside a ```svg fence for safe inline rendering.',
         '- Charts: Use ```chart with a JSON config for interactive Chart.js charts.',
