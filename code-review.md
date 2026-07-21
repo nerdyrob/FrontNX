@@ -73,12 +73,10 @@ The assistant message ID is captured at stream start via `uid()`. A `findAssista
 
 The catch block now checks `currentSessionPath.value` before calling `saveSession()`. If no session was ever persisted (streaming failed before the first save completed), the error save is skipped entirely — avoiding orphaned session files containing only an error message.
 
-### MEDIUM: `list()` uses blocking `readFileSync`
-**File**: `repositories/session-fs.repository.ts:105`
+### MEDIUM: `list()` uses blocking `readFileSync` [FIXED]
+**File**: `repositories/session-fs.repository.ts`
 
-`extractPreview()` uses `readFileSync` for every session file. For a large number of sessions, this blocks the Nitro server's event loop. Parse errors are silently caught (line 118), returning empty preview data without logging.
-
-**Fix**: Use `readFile` (async) with `Promise.all`. Log parse failures at warn level.
+`extractPreview()` converted to async using `readFile` (promises API). `list()` uses `Promise.all` for concurrent reads across all session files, unblocking the event loop. Parse failures now logged via `console.warn` with the file path and error, instead of silent catch.
 
 ### LOW: `ChartRenderer` registers Chart.js components globally at module scope
 **File**: `components/ChartRenderer.vue:46-50`

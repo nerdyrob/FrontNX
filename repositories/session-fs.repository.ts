@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, renameSync } from 'node:fs'
 import { readFile, writeFile, appendFile, unlink } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -103,17 +103,20 @@ export class SessionFsRepository implements ISessionRepository {
   async list(): Promise<SessionListItem[]> {
     if (!existsSync(this.baseDir)) return []
     const files = readdirSync(this.baseDir).filter((f) => f.endsWith('.md'))
-    return files.map((f) => {
-      const id = f.replace(/\.md$/, '')
-      const path = join(this.baseDir, f)
-      const { preview, timestamp, totalTokens, totalProcessingTimeMs } = this.extractPreview(path)
-      return { id, path, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
-    }).sort((a, b) => b.id.localeCompare(a.id))
+    const entries = await Promise.all(
+      files.map(async (f) => {
+        const id = f.replace(/\.md$/, '')
+        const filePath = join(this.baseDir, f)
+        const { preview, timestamp, totalTokens, totalProcessingTimeMs } = await this.extractPreview(filePath)
+        return { id, path: filePath, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
+      }),
+    )
+    return entries.sort((a, b) => b.id.localeCompare(a.id))
   }
 
-  private extractPreview(filePath: string): { preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number } {
+  private async extractPreview(filePath: string): Promise<{ preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number }> {
     try {
-      const content = readFileSync(filePath, 'utf-8')
+      const content = await readFile(filePath, 'utf-8')
       const { meta, messages } = this.sessionService.parseMarkdown(content)
       const firstUserMessage = messages.find((message) => message.role === 'user')
       const preview = firstUserMessage?.content.replace(/\s+/g, ' ').trim().slice(0, 120) || '(empty)'
@@ -126,7 +129,8 @@ export class SessionFsRepository implements ISessionRepository {
         totalTokens,
         totalProcessingTimeMs,
       }
-    } catch {
+    } catch (err) {
+      console.warn('Failed to parse session file:', filePath, err)
       return { preview: '', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0 }
     }
   }
