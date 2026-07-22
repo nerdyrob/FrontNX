@@ -1,4 +1,5 @@
 import type { ChatMessage, SessionMeta } from '../types'
+import { uid } from '../utils/uid'
 
 function formatMetrics(metrics: ChatMessage['metrics']): string {
   if (!metrics) return ''
@@ -71,14 +72,6 @@ function parseAssistantMetadata(content: string): {
     responseStatus,
     stopReason,
   }
-}
-
-function uid(): string {
-  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
 }
 
 export class SessionService {

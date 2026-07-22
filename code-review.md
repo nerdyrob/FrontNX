@@ -188,10 +188,10 @@ No coverage thresholds configured in vitest.config.ts. No coverage reporting set
 
 ## Poor Coding Practices
 
-### HIGH: Duplicate `uid()` implementation
-**Files**: `composables/useChatState.ts:6-12`, `services/session.service.ts:76-82`
+### HIGH: Duplicate `uid()` implementation [FIXED]
+**File**: `utils/uid.ts`
 
-The same UUID generation function (with fallback) is copy-pasted twice. Extract to `utils/uid.ts`.
+Extracted to `utils/uid.ts`. Both `composables/useChatState.ts` and `services/session.service.ts` now import from this shared module. 4 tests added in `tests/utils/uid.spec.ts` covering UUID format, uniqueness, `crypto.randomUUID` path, and fallback path.
 
 ### HIGH: Duplicate copy-to-clipboard logic
 **Files**: `components/ChatMessage.vue:159-185`, `components/CodeBlock.vue:61-81`, `components/Base64Image.vue:112-118`
@@ -326,7 +326,7 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **MEDIUM** | Bugs                    | 4     | 4         |✅
 | **HIGH**   | Performance             | 2     | 2         |✅
 | **MEDIUM** | Performance             | 2     | 2         |✅
-| **HIGH**   | Coding Practices        | 3     | 0         |
+| **HIGH**   | Coding Practices        | 3     | 3         |
 | **MEDIUM** | Coding Practices        | 5     | 0         |
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
