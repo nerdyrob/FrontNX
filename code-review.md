@@ -326,7 +326,7 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
 | **HIGH**   | Missing Tests           | 4     | 4         |✅
 | **MEDIUM** | Missing Tests           | 2     | 2         |✅
-| **LOW**    | Various                 | 11    | 3         |
+| **LOW**    | Various                 | 13    | 5         |
         
 **Top 5 actions to prioritize:**
 
