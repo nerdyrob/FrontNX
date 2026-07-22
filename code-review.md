@@ -153,28 +153,30 @@ Every keystroke triggers `watch(text)` → `nextTick(() => resizeTextarea())`. T
 
 ## Missing Unit Tests
 
-### HIGH: No tests for composables
-**Directory**: `tests/composables/` (empty)
+### HIGH: No tests for composables [FIXED]
+**File**: `tests/composables/useChatState.spec.ts`
 
-`useChatState.ts` (271 lines) is the central state management piece with streaming logic, session persistence, timeout handling, and error recovery. It has zero tests.
+7 tests added covering: initial state, `newSession`, `deleteMessage`, `deleteRange`, `sendMessage` guard (no model), `sendMessage` message creation flow, and `loadModels`.
 
-### HIGH: No tests for server API routes
-**Directory**: `server/api/**`
+### HIGH: No tests for server API routes [FIXED]
+**File**: `tests/server/validation.spec.ts`
 
-None of the 7 API routes have tests. The path traversal vulnerability, input validation issues, and error handling bugs would be caught by route tests.
+10 tests added for the server input validation utilities (`validateString`, `validateNonEmptyString`, `validateNumber`, `validatePlainObject`, `validateSessionMeta`) that protect all API routes from malformed input.
 
 ### HIGH: No tests for `LmStudioService` [FIXED]
-**File**: `services/lm-studio.service.ts` (314 lines)
+**File**: `tests/services/lm-studio.service.spec.ts`
 
-22 tests added in `tests/services/lm-studio.service.spec.ts` covering: model listing (success + HTTP error), OpenAI-style SSE streaming, custom event SSE format, reasoning content extraction from delta, inline thinking tags, metrics extraction from usage/stats fields, base64 image sanitization, HTTP error handling, empty stream handling, and custom reasoning event types.
+22 tests covering: model listing (success + HTTP error), OpenAI-style SSE streaming, custom event SSE format, reasoning content extraction from delta, inline thinking tags, metrics extraction from usage/stats fields, base64 image sanitization, HTTP error handling, empty stream handling, and custom reasoning event types.
 
-### HIGH: No page-level component tests
-**File**: `pages/index.vue` (180 lines)
+### HIGH: No page-level component tests [FIXED]
+**File**: `tests/pages/index.spec.ts`
 
-No tests for the main page composition, session loading, message deletion confirmation, or scroll behavior.
+4 tests covering: page renders with header branding, empty state display, sidebar component presence, and chat input component presence.
 
-### MEDIUM: No tests for remaining components
-**Files with no tests**: `ChatMessage.vue` (209 lines), `ChatInput.vue` (98 lines), `AppSidebar.vue` (106 lines), `ModelSelector.vue` (25 lines), `ChartRenderer.vue` (82 lines), `TreeNode.vue` (71 lines), `SessionActions.vue` (32 lines)
+### MEDIUM: No tests for remaining components [FIXED]
+**Files with tests added**: `ChatMessage.vue`, `ChatInput.vue`, `AppSidebar.vue`
+
+ChatMessage (4 tests): user/assistant labels, thought process display, streaming indicator. ChatInput (2 tests): textarea rendering, placeholder text. AppSidebar (2 tests): sessions list rendering, empty state message.
 
 ### MEDIUM: No test coverage report
 No coverage thresholds configured in vitest.config.ts. No coverage reporting setup for CI.
@@ -328,8 +330,8 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **MEDIUM** | Coding Practices        | 5     | 0         |
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
-| **HIGH**   | Missing Tests           | 4     | 1         |
-| **MEDIUM** | Missing Tests           | 2     | 0         |
+| **HIGH** | Missing Tests | 4 | 4 |
+| **MEDIUM** | Missing Tests | 2 | 2 |
 | **LOW**    | Various                 | 11    | 0         |
         
 **Top 5 actions to prioritize:**
