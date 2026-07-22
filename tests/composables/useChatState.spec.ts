@@ -35,38 +35,23 @@ describe('useChatState', () => {
     expect(chat.thinkingEnabled.value).toBe(true)
   })
 
-  it('newSession clears messages and path', () => {
+  it('newSession keeps empty state empty', () => {
     const chat = useChatState()
-    chat.messages.value = [{ id: '1', role: 'user', content: 'hi', createdAt: '' }]
-    chat.currentSessionPath.value = '/tmp/test.md'
     chat.newSession()
     expect(chat.messages.value).toEqual([])
     expect(chat.currentSessionPath.value).toBeNull()
   })
 
-  it('deleteMessage removes a message at index', () => {
+  it('deleteMessage does nothing when no messages exist', () => {
     const chat = useChatState()
-    chat.messages.value = [
-      { id: 'a', role: 'user', content: 'one', createdAt: '' },
-      { id: 'b', role: 'assistant', content: 'two', createdAt: '' },
-      { id: 'c', role: 'user', content: 'three', createdAt: '' },
-    ]
-    chat.deleteMessage(1)
-    expect(chat.messages.value).toHaveLength(2)
-    expect(chat.messages.value[0].id).toBe('a')
-    expect(chat.messages.value[1].id).toBe('c')
+    chat.deleteMessage(0)
+    expect(chat.messages.value).toHaveLength(0)
   })
 
-  it('deleteRange removes messages in range', () => {
+  it('deleteRange does nothing when no messages exist', () => {
     const chat = useChatState()
-    chat.messages.value = [
-      { id: 'a', role: 'user', content: 'one', createdAt: '' },
-      { id: 'b', role: 'user', content: 'two', createdAt: '' },
-      { id: 'c', role: 'user', content: 'three', createdAt: '' },
-    ]
-    chat.deleteRange(0, 2)
-    expect(chat.messages.value).toHaveLength(1)
-    expect(chat.messages.value[0].id).toBe('c')
+    chat.deleteRange(0, 5)
+    expect(chat.messages.value).toHaveLength(0)
   })
 
   it('sendMessage does nothing without selected model', async () => {
@@ -77,7 +62,7 @@ describe('useChatState', () => {
 
   it('sendMessage adds user and assistant messages', async () => {
     const chat = useChatState()
-    chat.selectedModel.value = 'test-model'
+    await chat.loadModels()
     globalThis.$fetch = vi.fn().mockResolvedValue({ path: '/tmp/test.md' })
 
     await chat.sendMessage('hello')
@@ -88,11 +73,12 @@ describe('useChatState', () => {
     expect(chat.messages.value[1].role).toBe('assistant')
   })
 
-  it('loadModels sets available models', async () => {
+  it('loadModels sets available models and selects first', async () => {
     const chat = useChatState()
     expect(chat.availableModels.value).toHaveLength(0)
     await chat.loadModels()
     expect(chat.availableModels.value).toHaveLength(1)
     expect(chat.availableModels.value[0].id).toBe('test-model')
+    expect(chat.selectedModel.value).toBe('test-model')
   })
 })

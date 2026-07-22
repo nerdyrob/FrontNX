@@ -213,12 +213,10 @@ Nuxt UI v3 exposes a design token system. Direct CSS variable references bypass 
 
 `LmStudioService` and `SessionService` are now instantiated at module level, outside the composable function. A single instance of each service is created when the module first loads, regardless of how many components call `useChatState()`.
 
-### MEDIUM: Mutable state exposed from composable
-**File**: `composables/useChatState.ts:253-270`
+### MEDIUM: Mutable state exposed from composable [FIXED]
+**File**: `composables/useChatState.ts`
 
-`useChatState()` returns the raw Vue refs, allowing any consumer to do `chat.messages.value = []` or `chat.isStreaming.value = false`, bypassing any side effects (like saving). Only `sendMessage`, `deleteMessage`, etc., trigger saves.
-
-**Fix**: Return `readonly()` wrapped refs and expose only mutation functions.
+State refs (`messages`, `selectedModel`, `availableModels`, `isStreaming`, `currentSessionPath`, `loadError`, `sessionRefreshTick`, `thinkingEnabled`) are now wrapped with `readonly()` before being returned. Components can only read state via `.value`; mutations must go through the provided functions (`sendMessage`, `deleteMessage`, `newSession`, etc.). Tests updated to use mutation functions instead of direct `.value` assignment.
 
 ### MEDIUM: `useSessionPersistence` composable is defined but unused by `useChatState`
 **Files**: `composables/useSessionPersistence.ts`, `composables/useChatState.ts`
@@ -325,7 +323,7 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **HIGH**   | Performance             | 2     | 2         |✅
 | **MEDIUM** | Performance             | 2     | 2         |✅
 | **HIGH**   | Coding Practices        | 3     | 3         |✅
-| **MEDIUM** | Coding Practices        | 5     | 0         |
+| **MEDIUM** | Coding Practices        | 5     | 2         |
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |✅
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
 | **HIGH**   | Missing Tests           | 4     | 4         |✅

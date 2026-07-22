@@ -289,14 +289,14 @@ export function useChatState() {
   }
 
   return {
-    messages,
-    selectedModel,
-    availableModels,
-    isStreaming,
-    currentSessionPath,
-    loadError,
-    sessionRefreshTick,
-    thinkingEnabled,
+    messages: readonly(messages),
+    selectedModel: readonly(selectedModel),
+    availableModels: readonly(availableModels),
+    isStreaming: readonly(isStreaming),
+    currentSessionPath: readonly(currentSessionPath),
+    loadError: readonly(loadError),
+    sessionRefreshTick: readonly(sessionRefreshTick),
+    thinkingEnabled: readonly(thinkingEnabled),
     thinkingSupported,
     loadModels,
     sendMessage,
