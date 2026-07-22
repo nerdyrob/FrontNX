@@ -223,15 +223,15 @@ State refs (`messages`, `selectedModel`, `availableModels`, `isStreaming`, `curr
 
 `useChatState` now consumes `useSessionPersistence` for all session API calls. Replaced 5 raw `$fetch` calls (`read`, `create`, `rewrite`) with composable methods (`persistence.read()`, `persistence.create()`, `persistence.write()`). The persistence layer is the single source of truth for session API access.
 
-### LOW: `filename()` method on SessionService appears unused
-**File**: `services/session.service.ts:183-187`
+### LOW: `filename()` method on SessionService appears unused [FIXED]
+**File**: `services/session.service.ts`
 
-The `filename()` method exists but `SessionFsRepository` uses its own `toShortTimestamp()` function instead. Remove the unused method or consolidate.
+Removed the unused `filename()` method. The `SessionFsRepository` already has `toShortTimestamp()` which serves the same purpose.
 
-### LOW: `console.warn` calls in production
-**Files**: `components/StructuredDataViewer.vue:122`, `components/ChartRenderer.vue:67`, `components/CodeBlock.vue:79`
+### LOW: `console.warn` calls in production [FIXED]
+**Files**: `components/StructuredDataViewer.vue`, `components/ChartRenderer.vue`
 
-Console warnings from parse failures leak implementation details to the browser console in production. Consider using a debug-only logging utility.
+`console.warn` calls now guarded with `if (import.meta.dev)`. Parse failure details only appear in the browser console during development, not in production builds.
 
 ### LOW: `XMLParser` instance created inside computed
 **File**: `components/StructuredDataViewer.vue:111`

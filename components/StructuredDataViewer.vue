@@ -58,6 +58,12 @@ import { parse as parseYaml } from 'yaml'
 import { parse as parseToml } from '@iarna/toml'
 import { XMLParser } from 'fast-xml-parser'
 
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  isArray: (name) => name === 'item' || name.endsWith('s'),
+})
+
 const props = defineProps<{
   code: string
   lang: string
@@ -108,18 +114,13 @@ const parseResult = computed(() => {
         parsed = parseToml(props.code)
         break
       case 'xml': {
-        const parser = new XMLParser({
-          ignoreAttributes: false,
-          attributeNamePrefix: '@_',
-          isArray: (name) => name === 'item' || name.endsWith('s'),
-        })
-        parsed = parser.parse(props.code)
+        parsed = xmlParser.parse(props.code)
         break
       }
     }
   } catch (e) {
     parseError = `Failed to parse ${formatLabel.value}: ${(e as Error).message}`
-    console.warn('[StructuredDataViewer]', parseError)
+    if (import.meta.dev) console.warn('[StructuredDataViewer]', parseError)
   }
   return { parsed, parseError, isEmpty: false }
 })

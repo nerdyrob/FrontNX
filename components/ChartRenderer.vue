@@ -64,7 +64,7 @@ const parsed = computed(() => {
   try {
     return { config: JSON.parse(props.code) as ChartConfig, isEmpty: false }
   } catch (e) {
-    console.warn('[ChartRenderer] parse failed:', (e as Error).message)
+    if (import.meta.dev) console.warn('[ChartRenderer] parse failed:', (e as Error).message)
     return { config: null, isEmpty: false }
   }
 })
