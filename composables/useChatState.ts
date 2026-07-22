@@ -10,10 +10,11 @@ function estimateTokens(text: string): number {
   return Math.max(1, Math.round(trimmed.length / 4))
 }
 
+const _lmStudio = new LmStudioService('/api/lm')
+const _sessionService = new SessionService()
+
 export function useChatState() {
   const config = useRuntimeConfig()
-  const lmStudio = new LmStudioService('/api/lm')
-  const sessionService = new SessionService()
 
   const messages = ref<ChatMessage[]>([])
   const selectedModel = ref<string>('')
@@ -45,7 +46,7 @@ export function useChatState() {
   async function loadModels() {
     loadError.value = null
     try {
-      availableModels.value = await lmStudio.getModels()
+      availableModels.value = await _lmStudio.getModels()
       if (!selectedModel.value && availableModels.value.length > 0) {
         selectedModel.value = availableModels.value[0].id
       }
@@ -125,7 +126,7 @@ export function useChatState() {
     }
 
     try {
-      const response = await lmStudio.sendChat(
+      const response = await _lmStudio.sendChat(
         messages.value.slice(0, -1),
         selectedModel.value,
         (delta) => {
@@ -212,7 +213,7 @@ export function useChatState() {
       const res = await $fetch<{ content: string }>('/api/session/read', {
         params: { path },
       })
-      const { meta, messages: loaded } = sessionService.parseMarkdown(res.content)
+      const { meta, messages: loaded } = _sessionService.parseMarkdown(res.content)
       messages.value = loaded
       currentSessionPath.value = path
       if (meta.model) selectedModel.value = meta.model
@@ -241,7 +242,7 @@ export function useChatState() {
   }
 
   async function saveSession() {
-    const content = sessionService.buildMarkdown(messages.value, {
+    const content = _sessionService.buildMarkdown(messages.value, {
       model: selectedModel.value,
       service: config.public.llmServerName,
       created: new Date().toISOString(),
@@ -275,7 +276,7 @@ export function useChatState() {
 
   async function rewriteSessionFile() {
     if (!currentSessionPath.value) return
-    const content = sessionService.buildMarkdown(messages.value, {
+    const content = _sessionService.buildMarkdown(messages.value, {
       model: selectedModel.value,
       service: config.public.llmServerName,
       created: new Date().toISOString(),

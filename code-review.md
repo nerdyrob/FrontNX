@@ -208,10 +208,10 @@ The system prompt is now configurable via `LLM_SYSTEM_PROMPT` environment variab
 
 Nuxt UI v3 exposes a design token system. Direct CSS variable references bypass the theme layer and create tight coupling to the implementation.
 
-### MEDIUM: Service instances created per composable call
-**Files**: `composables/useChatState.ts:23-24`
+### MEDIUM: Service instances created per composable call [FIXED]
+**File**: `composables/useChatState.ts`
 
-`LmStudioService` and `SessionService` are instantiated inside the composable function body. If called in multiple components, multiple instances are created. Use a singleton pattern or provide/inject.
+`LmStudioService` and `SessionService` are now instantiated at module level, outside the composable function. A single instance of each service is created when the module first loads, regardless of how many components call `useChatState()`.
 
 ### MEDIUM: Mutable state exposed from composable
 **File**: `composables/useChatState.ts:253-270`
