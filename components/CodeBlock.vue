@@ -55,35 +55,11 @@ const props = defineProps<{
   lang: string
 }>()
 
-const copied = ref(false)
-let copiedTimer: ReturnType<typeof setTimeout> | null = null
+const { copied, copy: clipCopy } = useClipboard()
 
-async function copy() {
-  const text = displayCode.value
-  if (!text) return
-  try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      const el = document.createElement('textarea')
-      el.value = text
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-    }
-    copied.value = true
-    if (copiedTimer) clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => { copied.value = false }, 1500)
-  } catch (e) {
-    console.warn('[CodeBlock] copy failed:', e)
-    copied.value = false
-  }
+function copy() {
+  clipCopy(displayCode.value)
 }
-
-onBeforeUnmount(() => {
-  if (copiedTimer) clearTimeout(copiedTimer)
-})
 
 const structuredLangs = ['json', 'yaml', 'yml', 'toml', 'xml']
 const isStructured = computed(() => structuredLangs.includes(props.lang))

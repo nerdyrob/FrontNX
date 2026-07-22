@@ -28,7 +28,7 @@
             variant="ghost"
             class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
             :title="copied ? 'Copied' : 'Copy'"
-            @click="copyMessage"
+            @click="copyMessage(copyableContent)"
           />
         </div>
         <div class="pl-9">
@@ -69,7 +69,7 @@
             variant="ghost"
             class="-ml-1 text-dimmed hover:text-highlighted active:text-highlighted"
             :title="copied ? 'Copied' : 'Copy'"
-            @click="copyMessage"
+            @click="copyMessage(copyableContent)"
           />
         </div>
         <details v-if="thinkingContent" class="ml-9 mb-2 rounded-lg transition-colors max-w-[750px] [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60" :open="!!streaming">
@@ -153,40 +153,7 @@ const copyableContent = computed(() => {
   return props.message.role === 'assistant' ? displayContent.value : props.message.content
 })
 
-const copied = ref(false)
-let copiedResetTimer: ReturnType<typeof setTimeout> | null = null
-
-async function copyMessage() {
-  if (!copyableContent.value) return
-
-  try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(copyableContent.value)
-    } else {
-      const el = document.createElement('textarea')
-      el.value = copyableContent.value
-      el.style.position = 'fixed'
-      el.style.opacity = '0'
-      document.body.appendChild(el)
-      el.focus()
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-    }
-
-    copied.value = true
-    if (copiedResetTimer) clearTimeout(copiedResetTimer)
-    copiedResetTimer = setTimeout(() => {
-      copied.value = false
-    }, 1500)
-  } catch {
-    copied.value = false
-  }
-}
-
-onBeforeUnmount(() => {
-  if (copiedResetTimer) clearTimeout(copiedResetTimer)
-})
+const { copied, copy: copyMessage } = useClipboard()
 
 const processingTimeLabel = computed(() => {
   const ms = props.message.metrics?.processingTimeMs ?? 0

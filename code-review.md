@@ -193,10 +193,10 @@ No coverage thresholds configured in vitest.config.ts. No coverage reporting set
 
 Extracted to `utils/uid.ts`. Both `composables/useChatState.ts` and `services/session.service.ts` now import from this shared module. 4 tests added in `tests/utils/uid.spec.ts` covering UUID format, uniqueness, `crypto.randomUUID` path, and fallback path.
 
-### HIGH: Duplicate copy-to-clipboard logic
-**Files**: `components/ChatMessage.vue:159-185`, `components/CodeBlock.vue:61-81`, `components/Base64Image.vue:112-118`
+### HIGH: Duplicate copy-to-clipboard logic [FIXED]
+**File**: `composables/useClipboard.ts`
 
-Three components implement slightly different clipboard copy functions with `document.execCommand('copy')` fallbacks. Extract to a `useClipboard` composable.
+Created a shared `useClipboard` composable with `navigator.clipboard` / `document.execCommand('copy')` fallback and auto-reset timer. `ChatMessage.vue` and `CodeBlock.vue` now use it. 5 tests added in `tests/composables/useClipboard.spec.ts` covering initialization, clipboard API path, fallback path, empty text guard, and auto-reset.
 
 ### HIGH: System prompt hardcoded as a string literal
 **File**: `services/lm-studio.service.ts:97-122`
