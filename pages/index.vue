@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-dvh">
     <!-- Full-width header -->
-    <header class="no-print flex items-center justify-between px-6 h-[57px] border-b border-default shrink-0 bg-[var(--ui-bg)]/80 backdrop-blur-sm">
+    <header class="no-print flex items-center justify-between px-6 h-[57px] border-b border-default shrink-0 bg-background/80 backdrop-blur-sm">
       <div class="flex items-center gap-1">
         <span class="font-bold text-xl text-primary">Frontnx</span>
         <UIcon name="i-lucide-bot-message-square" class="w-5 h-5 text-primary" />
@@ -39,7 +39,7 @@
       />
 
       <!-- Main chat area -->
-      <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-[var(--ui-bg-elevated)]/40">
+      <div class="flex flex-col flex-1 min-w-0 bg-gradient-to-b from-transparent to-elevated/40">
         <!-- Messages -->
         <main ref="messagesContainer" class="flex-1 overflow-y-auto">
           <div class="max-w-3xl mx-auto px-4 py-8 space-y-6">

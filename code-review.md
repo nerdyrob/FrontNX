@@ -178,10 +178,12 @@ Every keystroke triggers `watch(text)` → `nextTick(() => resizeTextarea())`. T
 
 ChatMessage (4 tests): user/assistant labels, thought process display, streaming indicator. ChatInput (2 tests): textarea rendering, placeholder text. AppSidebar (2 tests): sessions list rendering, empty state message.
 
-### MEDIUM: No test coverage report
-No coverage thresholds configured in vitest.config.ts. No coverage reporting setup for CI.
+### MEDIUM: No test coverage report [FIXED]
+**File**: `vitest.config.ts`
 
-### Add suggested: Lint and type-check scripts [FIXED]
+Added `@vitest/coverage-v8` with `v8` provider. Coverage configured with `text`, `lcov`, and `html` reporters. Thresholds: lines 50%, statements 50%, functions 40%, branches 30%. Covers `components/`, `composables/`, `services/`, `utils/`.
+
+### Add suggested: Lint and type-check scripts 
 `lint` and `typecheck` scripts added to `package.json`. `@nuxt/eslint` module configured in `nuxt.config.ts` with flat config in `eslint.config.mjs`.
 
 ---
@@ -203,10 +205,10 @@ Created a shared `useClipboard` composable with `navigator.clipboard` / `documen
 
 The system prompt is now configurable via `LLM_SYSTEM_PROMPT` environment variable. Added to `nuxt.config.ts` runtime config as `llmSystemPrompt` and documented in `.env.example`. The `sendChat` method accepts an optional `customSystemPrompt` parameter; the composable passes the configured value from runtime config. Falls back to the built-in prompt when no env var is set.
 
-### MEDIUM: CSS custom properties used inline instead of via Nuxt UI theme
-**Files**: Multiple `.vue` files use `var(--ui-bg)`, `var(--ui-border)`, etc.
+### MEDIUM: CSS custom properties used inline instead of via Nuxt UI theme [FIXED]
+**File**: `pages/index.vue`
 
-Nuxt UI v3 exposes a design token system. Direct CSS variable references bypass the theme layer and create tight coupling to the implementation.
+Replaced `bg-[var(--ui-bg)]/80` and `to-[var(--ui-bg-elevated)]/40` with `bg-background/80` and `to-elevated/40` — the Nuxt UI v3 design token classes. No more `var(--ui-*)` references in any `.vue` files.
 
 ### MEDIUM: Service instances created per composable call [FIXED]
 **File**: `composables/useChatState.ts`
@@ -233,7 +235,7 @@ Removed the unused `filename()` method. The `SessionFsRepository` already has `t
 
 `console.warn` calls now guarded with `if (import.meta.dev)`. Parse failure details only appear in the browser console during development, not in production builds.
 
-### LOW: `XMLParser` instance created inside computed
+### LOW: `XMLParser` instance created inside computed [FIXED]
 **File**: `components/StructuredDataViewer.vue:111`
 
 A new `XMLParser` is created on every recomputation. Move the parser instance outside the computed.
@@ -321,12 +323,12 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **HIGH**   | Performance             | 2     | 2         |✅
 | **MEDIUM** | Performance             | 2     | 2         |✅
 | **HIGH**   | Coding Practices        | 3     | 3         |✅
-| **MEDIUM** | Coding Practices        | 5     | 3         |
+| **MEDIUM** | Coding Practices        | 5     | 4         |
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |✅
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
 | **HIGH**   | Missing Tests           | 4     | 4         |✅
 | **MEDIUM** | Missing Tests           | 2     | 2         |✅
-| **LOW**    | Various                 | 11    | 0         |
+| **LOW**    | Various                 | 11    | 3         |
         
 **Top 5 actions to prioritize:**
 
