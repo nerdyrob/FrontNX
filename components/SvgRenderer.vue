@@ -36,10 +36,9 @@ const svgState = computed(() => {
   try {
     const cleaned = DOMPurify.sanitize(props.code, {
       USE_PROFILES: { svg: true, svgFilters: true },
-      ADD_TAGS: ['use'],
       ADD_ATTR: ['viewBox', 'xmlns', 'xlink:href'],
       FORBID_TAGS: ['script'],
-      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout'],
+      FORBID_ATTR: ['on*'],
     })
     if (!cleaned || cleaned === '') {
       return { sanitized: null as string | null, error: null as string | null }

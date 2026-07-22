@@ -39,12 +39,10 @@ Created `types/llm-response.ts` with interfaces for OpenAI streaming chunks (`LL
 
 
 
-### LOW: DOMPurify SVG profile missing event handler attributes
-**File**: `components/SvgRenderer.vue:37-43`
+### LOW: DOMPurify SVG profile missing event handler attributes [FIXED]
+**File**: `components/SvgRenderer.vue`
 
-The `FORBID_ATTR` list only covers `onerror`, `onload`, `onclick`, `onmouseover`, `onmouseout` but misses `onfocus`, `onblur`, `oninput`, `onchange`, `onscroll`, `onbegin`, `onend`, etc. The `ADD_TAGS: ['use']` combined with `xlink:href` could enable external resource loading.
-
-**Fix**: Use `FORBID_ATTR: ['on*']` or add the missing event handler attributes. Consider removing `ADD_TAGS: ['use']` or sanitizing `xlink:href` values.
+Replaced individual event handler list with `FORBID_ATTR: ['on*']` which blocks ALL event handler attributes globally. Removed redundant `ADD_TAGS: ['use']` (`<use>` is already in DOMPurify's SVG profile). Kept `xlink:href` in `ADD_ATTR` — DOMPurify's built-in URL validation strips external URLs.
 
 ### LOW: `document.execCommand('copy')` fallback is deprecated
 **Files**: `components/ChatMessage.vue:173`, `components/CodeBlock.vue:72`
