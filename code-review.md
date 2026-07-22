@@ -323,7 +323,7 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **HIGH**   | Performance             | 2     | 2         |✅
 | **MEDIUM** | Performance             | 2     | 2         |✅
 | **HIGH**   | Coding Practices        | 3     | 3         |✅
-| **MEDIUM** | Coding Practices        | 5     | 4         |
+| **MEDIUM** | Coding Practices        | 4     | 4         |✅
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |✅
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
 | **HIGH**   | Missing Tests           | 4     | 4         |✅
