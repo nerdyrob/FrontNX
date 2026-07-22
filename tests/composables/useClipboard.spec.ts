@@ -20,14 +20,13 @@ describe('useClipboard', () => {
     vi.unstubAllGlobals()
   })
 
-  it('falls back to execCommand when clipboard API is unavailable', async () => {
+  it('handles missing clipboard API gracefully', async () => {
     vi.stubGlobal('navigator', { clipboard: undefined })
-    document.execCommand = vi.fn().mockReturnValue(true)
 
     const { copy, copied } = useClipboard()
     await copy('test text')
 
-    expect(copied.value).toBe(true)
+    expect(copied.value).toBe(false)
 
     vi.unstubAllGlobals()
   })

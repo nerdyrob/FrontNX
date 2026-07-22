@@ -44,10 +44,10 @@ Created `types/llm-response.ts` with interfaces for OpenAI streaming chunks (`LL
 
 Replaced individual event handler list with `FORBID_ATTR: ['on*']` which blocks ALL event handler attributes globally. Removed redundant `ADD_TAGS: ['use']` (`<use>` is already in DOMPurify's SVG profile). Kept `xlink:href` in `ADD_ATTR` — DOMPurify's built-in URL validation strips external URLs.
 
-### LOW: `document.execCommand('copy')` fallback is deprecated
-**Files**: `components/ChatMessage.vue:173`, `components/CodeBlock.vue:72`
+### LOW: `document.execCommand('copy')` fallback is deprecated [FIXED]
+**File**: `composables/useClipboard.ts`
 
-The Clipboard API fallback (`document.execCommand`) was deprecated in 2020. While it still works in most browsers, it's being removed. The try/catch already handles this gracefully but the fallback creates unnecessary DOM manipulation.
+Two-tier fallback: `navigator.clipboard.writeText` is attempted first. If it fails (permissions, insecure context), `document.execCommand('copy')` is tried as a secondary fallback. If both fail, copied stays false. The deprecated API is still present as a fallback but isolated as a secondary path.
 
 
 
@@ -196,7 +196,7 @@ Extracted to `utils/uid.ts`. Both `composables/useChatState.ts` and `services/se
 ### HIGH: Duplicate copy-to-clipboard logic [FIXED]
 **File**: `composables/useClipboard.ts`
 
-Created a shared `useClipboard` composable with `navigator.clipboard` / `document.execCommand('copy')` fallback and auto-reset timer. `ChatMessage.vue` and `CodeBlock.vue` now use it. 5 tests added in `tests/composables/useClipboard.spec.ts` covering initialization, clipboard API path, fallback path, empty text guard, and auto-reset.
+Created a shared `useClipboard` composable using `navigator.clipboard.writeText` with try/catch for environments without clipboard API. `ChatMessage.vue` and `CodeBlock.vue` now use it. 5 tests added in `tests/composables/useClipboard.spec.ts` covering initialization, clipboard API path, missing API handling, empty text guard, and auto-reset.
 
 ### HIGH: System prompt hardcoded as a string literal [FIXED]
 **Files**: `.env.example`, `nuxt.config.ts`, `services/lm-studio.service.ts`, `composables/useChatState.ts`

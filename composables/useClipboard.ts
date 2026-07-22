@@ -8,9 +8,9 @@ export function useClipboard() {
     if (!text) return
 
     try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text)
-      } else {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      try {
         const el = document.createElement('textarea')
         el.value = text
         el.style.position = 'fixed'
@@ -20,14 +20,15 @@ export function useClipboard() {
         el.select()
         document.execCommand('copy')
         document.body.removeChild(el)
+      } catch {
+        copied.value = false
+        return
       }
-
-      copied.value = true
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => { copied.value = false }, 1500)
-    } catch {
-      copied.value = false
     }
+
+    copied.value = true
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => { copied.value = false }, 1500)
   }
 
   onBeforeUnmount(() => {
