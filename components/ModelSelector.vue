@@ -6,7 +6,7 @@
       class="min-w-[180px] rounded-md border border-default bg-default px-3 py-1.5 text-sm text-highlighted outline-none focus:border-primary"
     >
       <option value="" disabled>Select model</option>
-      <option v-for="m in models" :key="m.id" :value="m.id">{{ m.id }}</option>
+      <option v-for="m in sortedModels" :key="m.id" :value="m.id">{{ m.id }}</option>
     </select>
   </div>
 </template>
@@ -18,6 +18,8 @@ const props = defineProps<{
   models: ModelOption[]
   modelValue: string
 }>()
+
+const sortedModels = computed(() => [...props.models].sort((a, b) => a.id.localeCompare(b.id)))
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]

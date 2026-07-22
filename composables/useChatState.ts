@@ -47,7 +47,8 @@ export function useChatState() {
   async function loadModels() {
     loadError.value = null
     try {
-      availableModels.value = await _lmStudio.getModels()
+      const allModels = await _lmStudio.getModels()
+      availableModels.value = allModels.filter((m) => !m.id.toLowerCase().includes('embedding'))
       if (!selectedModel.value && availableModels.value.length > 0) {
         selectedModel.value = availableModels.value[0].id
       }
