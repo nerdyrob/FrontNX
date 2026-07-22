@@ -97,27 +97,34 @@ export class LmStudioService {
     signal?: AbortSignal,
     reasoning?: boolean,
     onReasoning?: (delta: string) => void,
+    customSystemPrompt?: string,
   ): Promise<ChatResponse> {
     const baseMessages = messages.map(m => ({ role: m.role, content: this.sanitizeForApi(m.content) }))
 
-    const systemPrompt = [
-      { role: 'system', content: [
-        'You are a helpful assistant with access to a rich markdown renderer.',
-        'Use the following formats to make responses more readable:',
-        '',
-        '- Math: $$...$$ for display equations, $...$ for inline math (KaTeX).',
-        '- Code fences: Use ```language with any common language tag for syntax highlighting.',
-        '- Tables: Output CSV data in a ```csv or ```tsv fence for sortable/filterable tables. Do not use LaTeX ($...$ or $$...$$) inside table cells — table cells display plain text only.',
-        '- Structured data: Use ```json, ```yaml, ```toml, or ```xml fences for interactive tree views.',
-        '- Diagrams: Output SVG inside a ```svg fence for safe inline rendering.',
-        '- Charts: Use ```chart with a JSON config for interactive Chart.js charts.',
-        '  Supports types: bar, line, pie, doughnut, radar, polarArea, scatter.',
-        '  Example:',
-        '  ```chart',
-        '  {"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"Sales","data":[120,90,150]}]}}',
-        '  ```',
-        '- SQL/GraphQL: Use ```sql or ```graphql fences. Format and validate buttons are provided.',
-      ].join('\n') },
+    const builtinPrompt = [
+      'You are a helpful assistant with access to a rich markdown renderer.',
+      'Use the following formats to make responses more readable:',
+      '',
+      '- Math: $$...$$ for display equations, $...$ for inline math (KaTeX).',
+      '- Code fences: Use ```language with any common language tag for syntax highlighting.',
+      '- Tables: Output CSV data in a ```csv or ```tsv fence for sortable/filterable tables. Do not use LaTeX ($...$ or $$...$$) inside table cells — table cells display plain text only.',
+      '- Structured data: Use ```json, ```yaml, ```toml, or ```xml fences for interactive tree views.',
+      '- Diagrams: Output SVG inside a ```svg fence for safe inline rendering.',
+      '- Charts: Use ```chart with a JSON config for interactive Chart.js charts.',
+      '  Supports types: bar, line, pie, doughnut, radar, polarArea, scatter.',
+      '  Example:',
+      '  ```chart',
+      '  {"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"Sales","data":[120,90,150]}]}}',
+      '  ```',
+      '- SQL/GraphQL: Use ```sql or ```graphql fences. Format and validate buttons are provided.',
+    ].join('\n')
+
+    const promptContent = customSystemPrompt
+      ? `${customSystemPrompt}\n\n${builtinPrompt}`
+      : builtinPrompt
+
+    const systemPrompt: Array<{ role: string; content: string }> = [
+      { role: 'system', content: promptContent },
     ]
 
     if (!reasoning) {

@@ -138,6 +138,7 @@ export function useChatState() {
           accReasoning += reasoningDelta
           scheduleFlush()
         },
+        config.public.llmSystemPrompt as string | undefined,
       )
 
       // Flush any remaining accumulated content

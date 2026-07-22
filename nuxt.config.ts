@@ -19,6 +19,7 @@ export default defineNuxtConfig({
       llmServerBaseURL: process.env.LLM_SERVER_BASE_URL || '',
       llmServerName: process.env.LLM_SERVER_NAME || '',
       chatRequestTimeoutMs: Number(process.env.CHAT_REQUEST_TIMEOUT_MS) || 900000,
+      llmSystemPrompt: process.env.LLM_SYSTEM_PROMPT || '',
     },
   },
   typescript: {

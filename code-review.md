@@ -198,12 +198,10 @@ Extracted to `utils/uid.ts`. Both `composables/useChatState.ts` and `services/se
 
 Created a shared `useClipboard` composable with `navigator.clipboard` / `document.execCommand('copy')` fallback and auto-reset timer. `ChatMessage.vue` and `CodeBlock.vue` now use it. 5 tests added in `tests/composables/useClipboard.spec.ts` covering initialization, clipboard API path, fallback path, empty text guard, and auto-reset.
 
-### HIGH: System prompt hardcoded as a string literal
-**File**: `services/lm-studio.service.ts:97-122`
+### HIGH: System prompt hardcoded as a string literal [FIXED]
+**Files**: `.env.example`, `nuxt.config.ts`, `services/lm-studio.service.ts`, `composables/useChatState.ts`
 
-The entire system prompt with all format instructions is embedded as a template string in the service class. This makes it difficult to customize, test, or update without modifying source code. It also mixes configuration (format instructions) with business logic.
-
-**Fix**: Move to a separate constant file, or make it configurable via `AppConfig` / runtime settings.
+The system prompt is now configurable via `LLM_SYSTEM_PROMPT` environment variable. Added to `nuxt.config.ts` runtime config as `llmSystemPrompt` and documented in `.env.example`. The `sendChat` method accepts an optional `customSystemPrompt` parameter; the composable passes the configured value from runtime config. Falls back to the built-in prompt when no env var is set.
 
 ### MEDIUM: CSS custom properties used inline instead of via Nuxt UI theme
 **Files**: Multiple `.vue` files use `var(--ui-bg)`, `var(--ui-border)`, etc.

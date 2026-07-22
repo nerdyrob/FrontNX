@@ -168,6 +168,19 @@ describe('LmStudioService', () => {
       await expect(service.sendChat(messages, 'test-model')).rejects.toThrow('Chat request failed')
     })
 
+    it('uses custom system prompt when provided', async () => {
+      const stream = sseStream('data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}', 'data: [DONE]')
+      mockFetch(stream)
+
+      const customPrompt = 'You are a custom assistant.'
+      await service.sendChat(messages, 'test-model', undefined, undefined, false, undefined, customPrompt)
+
+      const callBody = JSON.parse((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
+      const systemMessage = callBody.messages.find((m: any) => m.role === 'system')
+      expect(systemMessage.content).toContain(customPrompt)
+      expect(systemMessage.content).toContain('Code fences')
+    })
+
     it('handles empty stream gracefully', async () => {
       const stream = sseStream()
       mockFetch(stream)
