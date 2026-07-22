@@ -15,6 +15,7 @@ const _sessionService = new SessionService()
 
 export function useChatState() {
   const config = useRuntimeConfig()
+  const persistence = useSessionPersistence()
 
   const messages = ref<ChatMessage[]>([])
   const selectedModel = ref<string>('')
@@ -210,9 +211,7 @@ export function useChatState() {
 
   async function loadSession(path: string) {
     try {
-      const res = await $fetch<{ content: string }>('/api/session/read', {
-        params: { path },
-      })
+      const res = await persistence.read(path)
       const { meta, messages: loaded } = _sessionService.parseMarkdown(res.content)
       messages.value = loaded
       currentSessionPath.value = path
@@ -250,25 +249,16 @@ export function useChatState() {
 
     const path = currentSessionPath.value
     if (path) {
-      await $fetch('/api/session/rewrite', {
-        method: 'POST',
-        body: { path, content },
-      })
+      await persistence.write(path, content)
     } else {
       const meta = {
         model: selectedModel.value,
         service: config.public.llmServerName,
         created: new Date().toISOString(),
       }
-      const res = await $fetch<{ path: string }>('/api/session/create', {
-        method: 'POST',
-        body: { meta },
-      })
+      const res = await persistence.create(meta)
       // Only store the path after the content rewrite succeeds
-      await $fetch('/api/session/rewrite', {
-        method: 'POST',
-        body: { path: res.path, content },
-      })
+      await persistence.write(res.path, content)
       currentSessionPath.value = res.path
     }
     sessionRefreshTick.value++
@@ -281,10 +271,7 @@ export function useChatState() {
       service: config.public.llmServerName,
       created: new Date().toISOString(),
     })
-    await $fetch('/api/session/rewrite', {
-      method: 'POST',
-      body: { path: currentSessionPath.value, content },
-    })
+    await persistence.write(currentSessionPath.value, content)
     sessionRefreshTick.value++
   }
 

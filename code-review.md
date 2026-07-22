@@ -218,12 +218,10 @@ Nuxt UI v3 exposes a design token system. Direct CSS variable references bypass 
 
 State refs (`messages`, `selectedModel`, `availableModels`, `isStreaming`, `currentSessionPath`, `loadError`, `sessionRefreshTick`, `thinkingEnabled`) are now wrapped with `readonly()` before being returned. Components can only read state via `.value`; mutations must go through the provided functions (`sendMessage`, `deleteMessage`, `newSession`, etc.). Tests updated to use mutation functions instead of direct `.value` assignment.
 
-### MEDIUM: `useSessionPersistence` composable is defined but unused by `useChatState`
-**Files**: `composables/useSessionPersistence.ts`, `composables/useChatState.ts`
+### MEDIUM: `useSessionPersistence` composable is defined but unused by `useChatState` [FIXED]
+**File**: `composables/useChatState.ts`
 
-`useChatState` calls `$fetch` directly for session API calls instead of using `useSessionPersistence`. This creates two parallel ways to access the session API with no clear purpose for the persistence composable.
-
-**Fix**: Have `useChatState` consume `useSessionPersistence`, or remove it.
+`useChatState` now consumes `useSessionPersistence` for all session API calls. Replaced 5 raw `$fetch` calls (`read`, `create`, `rewrite`) with composable methods (`persistence.read()`, `persistence.create()`, `persistence.write()`). The persistence layer is the single source of truth for session API access.
 
 ### LOW: `filename()` method on SessionService appears unused
 **File**: `services/session.service.ts:183-187`
@@ -323,7 +321,7 @@ While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrol
 | **HIGH**   | Performance             | 2     | 2         |✅
 | **MEDIUM** | Performance             | 2     | 2         |✅
 | **HIGH**   | Coding Practices        | 3     | 3         |✅
-| **MEDIUM** | Coding Practices        | 5     | 2         |
+| **MEDIUM** | Coding Practices        | 5     | 3         |
 | **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |✅
 | **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
 | **HIGH**   | Missing Tests           | 4     | 4         |✅
