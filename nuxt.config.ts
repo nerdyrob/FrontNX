@@ -14,12 +14,12 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
   },
   runtimeConfig: {
-    apiKey: process.env.API_KEY || '',
+    apiKey: '',
     public: {
-      llmServerBaseURL: process.env.LLM_SERVER_BASE_URL || '',
-      llmServerName: process.env.LLM_SERVER_NAME || '',
-      chatRequestTimeoutMs: Number(process.env.CHAT_REQUEST_TIMEOUT_MS) || 900000,
-      llmSystemPrompt: process.env.LLM_SYSTEM_PROMPT || '',
+      llmServerBaseURL: '',
+      llmServerName: '',
+      chatRequestTimeoutMs: 900000,
+      llmSystemPrompt: '',
     },
   },
   typescript: {
