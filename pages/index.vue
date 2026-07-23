@@ -19,8 +19,9 @@
         />
         <ModelSelector
           v-if="chat.availableModels.value.length > 0"
-          v-model="chat.selectedModel.value"
+          :model-value="chat.selectedModel.value"
           :models="chat.availableModels.value"
+          @update:model-value="chat.setSelectedModel"
         />
       </div>
     </header>

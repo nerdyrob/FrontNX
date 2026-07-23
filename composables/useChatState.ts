@@ -58,6 +58,10 @@ export function useChatState() {
     }
   }
 
+  function setSelectedModel(model: string) {
+    selectedModel.value = model
+  }
+
   async function sendMessage(text: string) {
     if (!selectedModel.value) return
 
@@ -293,5 +297,6 @@ export function useChatState() {
     deleteMessage,
     deleteRange,
     exportToPDF,
+    setSelectedModel,
   }
 }
