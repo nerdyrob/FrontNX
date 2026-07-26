@@ -72,7 +72,7 @@
             @click="copyMessage(copyableContent)"
           />
         </div>
-        <details v-if="thinkingContent" class="ml-9 mb-2 rounded-lg transition-colors max-w-[750px] [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60" :open="!!streaming">
+        <details v-if="thinkingContent" class="ml-9 mb-2 rounded-lg transition-colors max-w-[750px] [&[open]]:border [&[open]]:border-default [&[open]]:bg-elevated/60">
           <summary class="text-[11px] text-dimmed cursor-pointer select-none hover:text-highlighted mt-3 mx-3">Thought process</summary>
           <div class="mx-3 mb-3 text-sm leading-relaxed prose-message break-words max-w-full">
             <MarkdownRenderer :content="thinkingContent" />

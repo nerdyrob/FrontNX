@@ -161,7 +161,10 @@ onMounted(() => {
 })
 
 watch(
-  () => chat.messages.value.length,
+  [
+    () => chat.messages.value.length,
+    () => chat.messages.value[chat.messages.value.length - 1]?.content,
+  ],
   () => {
     nextTick(() => {
       if (messagesContainer.value) {
