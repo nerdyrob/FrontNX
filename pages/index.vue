@@ -118,6 +118,17 @@ const currentSessionId = ref<string | null>(null)
 
 function handleSend(text: string) {
   chat.sendMessage(text)
+  nextTick(() => {
+    scrollToBottom()
+  })
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
 }
 
 function confirmDeleteMessage(index: number) {
@@ -164,13 +175,10 @@ watch(
   [
     () => chat.messages.value.length,
     () => chat.messages.value[chat.messages.value.length - 1]?.content,
+    () => chat.isStreaming.value,
   ],
   () => {
-    nextTick(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    })
+    scrollToBottom()
   },
 )
 
