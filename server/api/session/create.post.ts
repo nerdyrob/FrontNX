@@ -1,6 +1,6 @@
-import { SessionFsRepository } from '~/repositories/session-fs.repository'
+import { getSessionRepository } from '~/server/utils/session-repository'
 
-const repo = new SessionFsRepository()
+const repo = getSessionRepository()
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)

@@ -1,337 +1,112 @@
-# Code Review & Audit: FrontNX
+# Code Review — FrontNX
 
-**Project**: FrontNX — Configurable chat frontend for LLM servers (Nuxt 3 + Nuxt UI)  
-**Date**: 2026-07-20  
-**Reviewer**: Automated audit  
+Scope: all source under `components/`, `composables/`, `services/`, `repositories/`, `server/`, `utils/`, `types/`, and the top-level Vue/TS entry files. Hidden/build/dependency folders (`.nuxt`, `build`, `node_modules`, `coverage`, `.output`) were excluded.
 
----
-
-## Security
-
-### HIGH: Path traversal in session API endpoints [FIXED]
-**Files**: `repositories/session-fs.repository.ts`
-
-All session CRUD endpoints accept a `path` parameter from the client and pass it to the repository, which now validates paths before filesystem operations. The `resolveSafePath` method normalizes the user-provided path relative to `baseDir`, verifies it stays within the session directory, and enforces `.md` extension restriction. Paths containing `..` or attempting absolute-path escape throw an error.
-
-**Tests added**: `tests/repositories/session-fs.repository.spec.ts` — 4 new tests covering read/write/delete/append with `../../etc/passwd` and `/etc/passwd` paths.
-
-### HIGH: LLM proxy is an open relay [FIXED]
-**Files**: `server/api/lm/[...].ts`, `server/middleware/auth.ts`, `server/utils/rate-limit.ts`
-
-The proxy now enforces four layers: (1) optional API key auth via `server/middleware/auth.ts`, (2) path allowlist restricted to `v0/models` and `v0/chat/completions` only, (3) in-memory rate limiting (60 req/min per IP) via `server/utils/rate-limit.ts`, (4) 200KB request body size limit.
-
-### HIGH: No input validation on server API routes [FIXED]
-**Files**: `server/utils/validation.ts`, all `server/api/session/` routes
-
-All session routes now validate body/query parameters before processing. A shared `server/utils/validation.ts` module provides `validateString`, `validateNonEmptyString`, `validatePlainObject`, and `validateSessionMeta` helpers. Each route validates required fields exist with correct types and returns 400 errors for invalid input.
-
-### MEDIUM: No authentication on any API endpoint [FIXED]
-**Files**: `server/middleware/auth.ts`, `nuxt.config.ts`
-
-An optional API key authentication middleware has been added. When `API_KEY` environment variable is set, all `/api/*` routes require an `Authorization: Bearer <API_KEY>` header. The middleware only applies to API routes (not pages/assets). Documented in `.env.example`.
-
-The LM proxy route (`server/api/lm/[...].ts`) now enforces a 200KB request body size limit, returning 413 for oversized requests.
-
-### MEDIUM: TypeScript `any` usage masks type errors [FIXED]
-**Files**: `services/lm-studio.service.ts`, `composables/useChatState.ts`, `server/api/lm/[...].ts`
-
-Created `types/llm-response.ts` with interfaces for OpenAI streaming chunks (`LLMResponseChunk`, `LLMDelta`, `LLMChoice`), custom event payloads (`CustomChatEndPayload`, `CustomMessageDelta`, `CustomReasoningDelta`), and metrics (`CustomStats`). Replaced all `: any` in `LmStudioService` methods (`extractContent`, `extractReasoning`, `extractMetrics`, `extractDelta`, `extractReasoningDelta`) with typed `Record<string, unknown>` parameters and proper casts. Catch blocks updated from `catch (err: any)` to `catch (err: unknown)` with `instanceof Error` checks in both `useChatState.ts` and `lm/[...].ts`.
-
-
-
-### LOW: DOMPurify SVG profile missing event handler attributes [FIXED]
-**File**: `components/SvgRenderer.vue`
-
-Replaced individual event handler list with `FORBID_ATTR: ['on*']` which blocks ALL event handler attributes globally. Removed redundant `ADD_TAGS: ['use']` (`<use>` is already in DOMPurify's SVG profile). Kept `xlink:href` in `ADD_ATTR` — DOMPurify's built-in URL validation strips external URLs.
-
-### LOW: `document.execCommand('copy')` fallback is deprecated [FIXED]
-**File**: `composables/useClipboard.ts`
-
-Two-tier fallback: `navigator.clipboard.writeText` is attempted first. If it fails (permissions, insecure context), `document.execCommand('copy')` is tried as a secondary fallback. If both fail, copied stays false. The deprecated API is still present as a fallback but isolated as a secondary path.
-
-
+Severity legend: 🔴 bug (wrong/incorrect behavior) · 🟠 security/robustness · 🟡 quality/maintainability · 🔵 minor/UX.
 
 ---
 
-## Potential Bugs
+## 🔴 Functional bugs
 
-### HIGH: Race condition during streaming deletion [FIXED]
-**File**: `composables/useChatState.ts`
+### 1. Streaming cannot be stopped — `stop` event is never wired ✅ FIXED (test: `tests/composables/useChatState-streaming.spec.ts`)
+`components/ChatInput.vue` emits `stop` when the user clicks the square button while streaming (`@click="$emit('stop')"`), and `services/lm-studio.service.ts` accepts an `AbortSignal` (`sendChat(..., signal)`), and `composables/useChatState.ts` already creates an `AbortController` (`requestController`) — but:
+- `pages/index.vue` binds `@send`, `@update:thinking`, etc. on `<ChatInput>` and never binds `@stop`.
+- `useChatState` exposes no `stop()` function and never exposes `requestController`, so nothing can call `requestController.abort()`.
 
-The assistant message ID is captured at stream start via `uid()`. A `findAssistant()` function locates the message by ID instead of using `messages.value.length - 1`. All three mutation points (`flushAccumulator`, success path, error path) use `findAssistant()` and gracefully no-op if the message was deleted.
+**Result:** the Stop button is non-functional; the user must wait for the full response/timeout. The `requestController` signal is passed to `fetch` but never triggered.
 
-### HIGH: Error during first save creates orphaned session file [FIXED]
-**File**: `composables/useChatState.ts`
+**Fix:** add `function stopStreaming() { requestController?.abort() }` in `useChatState`, expose it, and add `@stop="chat.stopStreaming"` in `pages/index.vue`. The LM service already treats `AbortError` as a stop reason.
 
-`saveSession()` now builds the markdown content first, then creates or rewrites the file, and only sets `currentSessionPath.value` after both the create AND rewrite succeed. If the rewrite fails, no path is stored and a subsequent save attempt will create a fresh file.
+### 2. Thinking toggle can never be turned off ✅ FIXED (test: `tests/composables/useChatState-streaming.spec.ts`)
+`composables/useChatState.ts:291` returns `thinkingEnabled: readonly(thinkingEnabled)`. `pages/index.vue:100` does `chat.thinkingEnabled.value = $event` in response to `@update:thinking`. Assigning to a `readonly()` ref is silently ignored (Vue warns in dev, no-op otherwise), so the value is permanently `true`.
 
-### MEDIUM: Empty assistant message with no timestamp if send fails instantly [FIXED]
-**File**: `composables/useChatState.ts`
+**Result:** the "Think" toggle in `ChatInput` is purely decorative; thinking/reasoning output cannot be disabled by the user despite the documented feature.
 
-`createdAt` is now set to `new Date().toISOString()` at message creation time (before the message is pushed to the array), rather than deferred until the first streaming chunk arrives. This ensures every assistant message has a timestamp immediately, eliminating the flash of an empty timestamp in the UI when streaming starts or fails instantly.
+**Fix:** expose a setter, e.g. `function setThinkingEnabled(v: boolean) { thinkingEnabled.value = v }` and use `@update:thinking="chat.setThinkingEnabled"` (mirroring the existing `setSelectedModel` pattern).
 
-### MEDIUM: `saveSession` creates a new session file on every error recovery [FIXED]
-**File**: `composables/useChatState.ts`
+### 3. CSV export is silently truncated ✅ FIXED (test: `tests/components/DataTable.spec.ts`)
+`components/DataTable.vue:233-234` calls `unparseCsv(data.value)`. `data` is the clipped view (`components/DataTable.vue:178-181`): `rawData.value.slice(0, MAX_ROWS)`. The UI banner explicitly says *"Export to CSV for full dataset"*, but only the first 5000 rows are exported.
 
-The catch block now checks `currentSessionPath.value` before calling `saveSession()`. If no session was ever persisted (streaming failed before the first save completed), the error save is skipped entirely — avoiding orphaned session files containing only an error message.
+**Fix:** export `rawData.value` (or `parsed.value.data`), not the truncated `data`.
 
-### MEDIUM: `list()` uses blocking `readFileSync` [FIXED]
-**File**: `repositories/session-fs.repository.ts`
+### 4. Session `created` timestamp is rewritten on every save ✅ FIXED (test: `tests/composables/useChatState-session.spec.ts`)
+`composables/useChatState.ts` builds markdown with `created: new Date().toISOString()` on every `saveSession()` (line 252) and `rewriteSessionFile()` (line 277). The on-disk front-matter `created` therefore reflects the *last save time*, not creation time.
 
-`extractPreview()` converted to async using `readFile` (promises API). `list()` uses `Promise.all` for concurrent reads across all session files, unblocking the event loop. Parse failures now logged via `console.warn` with the file path and error, instead of silent catch.
+**Result:** the sidebar (`AppSidebar` shows `session.timestamp` = `meta.created`) displays a "last modified" time while sessions are sorted by filename (creation). Also `deleteMessage` rewrites `created`, shifting the timestamp on edits.
 
-### MEDIUM: SSE buffer drops trailing data lines from custom event streams [FIXED]
-**File**: `services/lm-studio.service.ts`
-
-The SSE parser's `lines.pop()` moves the last line (without trailing `\n`) into a `buffer` variable, but if the stream ends before another chunk arrives, that buffered line is never processed. Custom event SSE streams that end with a `data:` line followed by `EOF` (no trailing blank line) would silently drop their final event — including `chat.end` events carrying metrics and status.
-
-**Fix**: After the read loop, process any remaining `buffer` content as a `data:` line before flushing the pending event. This ensures final events with no trailing newline are properly handled.
-
-
-
-
-### LOW: `ChartRenderer` registers Chart.js components globally at module scope
-**File**: `components/ChartRenderer.vue:46-50`
-
-`ChartJS.register(...)` is called at module evaluation time, not when the component mounts. If Chart.js is tree-shaken correctly by your bundler, this may be fine, but it means Chart.js is always initialized even if no chart is ever displayed. Multiple instances of this component would re-register (Chart.js handles this gracefully but it's unnecessary).
-
-### LOW: `window.confirm` blocking dialogs
-**File**: `pages/index.vue:123, 143`
-
-Uses `window.confirm()` which blocks the JS thread, doesn't match the app's design system, and doesn't support cancellation properly in all browsers. Replace with a Nuxt UI modal.
-
-### LOW: `crypto.randomUUID` fallback not cryptographically secure
-**Files**: `composables/useChatState.ts:6-12`, `services/session.service.ts:76-82`
-
-The `uid()` fallback uses `Math.random()` which is not suitable for unique IDs that might be used as session identifiers. Since this runs in a browser/Nitro context where `crypto.randomUUID()` is available, the fallback may never execute, but consider removing it or using a proper polyfill.
-
-
+**Fix:** capture `created` once when the session is first created and reuse it for subsequent writes (store it on the composable alongside `currentSessionPath`).
 
 ---
 
-## Performance
+## 🟠 Security / robustness
 
-### HIGH: Markdown re-parsed entirely on every streaming token [FIXED]
-**File**: `composables/useChatState.ts`
+### 5. `meta.created` and `meta.model` accepted without validation ✅ FIXED (test: `tests/server/validation.spec.ts`)
+`server/utils/validation.ts:30-37` only checks types (string), not validity. `created` can be any string (so #4 also corrupts sortable/displayed timestamps), and `model` can be empty. Low severity but worth a basic shape/date check, especially since these values are persisted verbatim and later parsed back.
 
-Rather than debouncing at the renderer level (which risks laggy display), the fix operates at the data layer. Streaming deltas are accumulated in non-reactive variables (`accContent`, `accReasoning`) and flushed to the reactive message ref at display refresh rate (via `requestAnimationFrame`, falling back to 50ms `setTimeout`). This reduces Vue reactivity updates from N per response to ~60 per second, preventing the cascading re-render through `ChatMessage` → `MarkdownRenderer` → `computed` on every token.
+### 6. Path-based session API trusts client-supplied absolute paths ✅ ADDRESSED (mitigated)
+`server/api/session/read.get.ts` and `rewrite.post.ts`/`delete.delete.ts` accept `path` from the client and resolve it via `resolveSafePath` (`repositories/session-fs.repository.ts:62-71`), which correctly blocks traversal outside `baseDir` and enforces `.md`. This is **mostly safe**, but:
+- `list.get.ts` returns **absolute filesystem paths** as `session.path`. The client (`pages/index.vue`, `AppSidebar`) then round-trips these absolute paths back to read/delete. This leaks the server's directory layout and couples the client to absolute server paths (brittle across machines / the SEA binary).
+- If `baseDir` is ever shared or the server runs with broader FS access, any `.md` file under `baseDir` is readable/writable via a crafted `path`. Acceptable for a single-user local app, but should be documented as trusted-local only.
 
-### HIGH: No virtualization for message list [FIXED]
-**File**: `components/ChatMessage.vue`
+**Suggestion:** use opaque session IDs (the filename without extension, already available as `id`) for client references, and resolve server-side from `baseDir` rather than accepting full client paths.
 
-Added `content-visibility: auto; contain-intrinsic-size: auto 200px` to ChatMessage's root. This CSS-only hint tells the browser to skip painting off-screen messages while keeping them in normal flow — zero layout changes, all spacing preserved. No JS library needed. Degrades gracefully in unsupported browsers.
+**Resolution:** `create()` and `list()` now return the opaque filename (not the absolute server path), and `read`/`write`/`delete` resolve it server-side via `resolveSafePath` (which still blocks traversal outside `baseDir`). The client no longer learns or round-trips absolute filesystem paths. Added test in `tests/repositories/session-fs.repository.spec.ts`.
 
-### MEDIUM: Shiki highlighter loads eagerly at module import time [FIXED]
-**File**: `utils/highlighter.ts`
+### 7. Auth middleware is opt-in only ✅ ADDRESSED (mitigated)
+`server/middleware/auth.ts` returns early when `config.apiKey` is empty, so the entire API (including the LM proxy and session file read/write) is unauthenticated by default. Fine for a localhost tool, but if `HOST=0.0.0.0` is used on a shared network this exposes the proxy and file store. Document the security model and consider failing closed or warning when binding to non-loopback without an API key.
 
-Removed the top-level `ensureHighlighter()` call. Shiki is now only loaded lazily when the first `CodeBlock` component mounts (the existing fallback at `CodeBlock.vue:140-144` already handles this). This saves ~2-5MB of compressed JS from being loaded on initial page load if no code blocks are displayed.
+**Resolution:** added `server/plugins/security.ts`, a Nitro plugin that logs a warning when the server is bound to a non-loopback address (`HOST` not `127.0.0.1`/`localhost`/`::1`) without an `apiKey` configured, so the local-only assumption is visible rather than silent. Failing closed was avoided to not break local dev.
 
-### MEDIUM: `DataTable` parses entire dataset in computed, no pagination at data level [FIXED]
-**File**: `components/DataTable.vue`
-
-Added a `MAX_ROWS` constant (5000). When parsed data exceeds the limit, only the first 5000 rows are passed to TanStack Table. An amber warning banner appears showing "Showing first 5,000 of N rows" with a suggestion to export CSV for the full dataset. The row count display in the header also shows both filtered and total counts when truncated.
-
-
-
-### LOW: Session list re-fetched after every save
-**File**: `pages/index.vue:177-179`
-
-`loadSessions()` is called on every `sessionRefreshTick` change, which fires after every message save. During streaming, `saveSession()` is called on each message completion, triggering unnecessary session list refreshes.
-
-**Fix**: Update the local sessions array in-place for the current session instead of re-fetching. Only re-fetch when switching sessions.
-
-### LOW: `resizeTextarea` with `watch` + `nextTick` overhead
-**File**: `components/ChatInput.vue:95-97`
-
-Every keystroke triggers `watch(text)` → `nextTick(() => resizeTextarea())`. This adds a microtask per character. The `@input` handler already calls `resizeTextarea`, so the watch is redundant for user typing. Consider placing it only for programmatic changes.
-
-
+### 8. No input size limit on session write/append bodies ✅ FIXED (test: `tests/repositories/session-fs.repository.spec.ts`)
+`server/api/session/rewrite.post.ts` and `append.post.ts` do not enforce a size cap (unlike the LM proxy's 200 KB check in `server/api/lm/[...].ts:34-39`). A client could write arbitrarily large files. Add a size guard consistent with the LM proxy.
 
 ---
 
-## Missing Unit Tests
+## 🟡 Quality / maintainability
 
-### HIGH: No tests for composables [FIXED]
-**File**: `tests/composables/useChatState.spec.ts`
+### 9. Dead code: `deleteRange` and `append` endpoint are unused in the app ✅ FIXED
+- `composables/useChatState.ts` exports `deleteRange` (line 298); it is only referenced by tests, never by UI logic. Either wire a "delete range" feature or remove it.
+- `server/api/session/append.post.ts` and `composables/useSessionPersistence.ts:22-27` (`append`) are never called anywhere in the app. The streaming flow rewrites the whole file on each Save instead of appending. Remove the unused endpoint or adopt append-based persistence.
 
-7 tests added covering: initial state, `newSession`, `deleteMessage`, `deleteRange`, `sendMessage` guard (no model), `sendMessage` message creation flow, and `loadModels`.
+### 10. `SessionFsRepository` instantiated per request and re-runs migration each time ✅ FIXED (shared singleton via `server/utils/session-repository.ts`)
+Each session route creates `new SessionFsRepository()` at module load (`const repo = new SessionFsRepository()`), and the constructor calls `migrateOldFiles()` plus `existsSync`/`mkdirSync`. Not per-request, but module-scope singletons drift from the `useChatState` pattern (which holds module-level service singletons). Consider a single shared repository instance.
 
-### HIGH: No tests for server API routes [FIXED]
-**File**: `tests/server/validation.spec.ts`
+### 11. `AppSidebar` re-declares the session item type inline ✅ FIXED
+`components/AppSidebar.vue:81` declares a full inline type instead of importing `SessionListItem` from `repositories/session.repository.ts` (already used in `pages/index.vue:108`). Centralize the type to avoid drift.
 
-10 tests added for the server input validation utilities (`validateString`, `validateNonEmptyString`, `validateNumber`, `validatePlainObject`, `validateSessionMeta`) that protect all API routes from malformed input.
+### 12. `readonly()` wrapping is inconsistent and hides the thinking bug (#2)
+`useChatState` returns several `readonly(...)` refs (`messages`, `selectedModel`, `thinkingEnabled`, …) but only provides setters for some (`setSelectedModel`). The pattern is good for encapsulation, but `thinkingEnabled` lacks a setter, which is exactly what caused #2. Add setters for every externally-mutable piece of state.
 
-### HIGH: No tests for `LmStudioService` [FIXED]
-**File**: `tests/services/lm-studio.service.spec.ts`
+### 13. `parseError` in `StructuredDataViewer` is silently dropped ✅ FIXED (test: `tests/components/StructuredDataViewer.spec.ts`)
+`components/StructuredDataViewer.vue:121-124` catches parse failures, `console.warn`s, and then renders the raw (possibly broken) document with **no error indicator**. Users can't tell invalid JSON/YAML/TOML/XML from valid. Surface `parseError` in the UI.
 
-22 tests covering: model listing (success + HTTP error), OpenAI-style SSE streaming, custom event SSE format, reasoning content extraction from delta, inline thinking tags, metrics extraction from usage/stats fields, base64 image sanitization, HTTP error handling, empty stream handling, and custom reasoning event types.
+### 14. `ChartRenderer` uses unvalidated, attacker/LLM-controlled config ✅ FIXED (test: `tests/components/ChartRenderer.spec.ts`)
+`components/ChartRenderer.vue:74-75` feeds `config.data` and `config.options` straight from parsed JSON into Chart.js. Malformed shapes can throw at render time (uncaught). Wrap in try/catch and validate the shape before rendering.
 
-### HIGH: No page-level component tests [FIXED]
-**File**: `tests/pages/index.spec.ts`
+### 15. `MarkdownRenderer` bracketed-math heuristic can mis-classify content ✅ DOCUMENTED (no code change)
+`utils/markdown.ts:75-78` converts any `[ ... ]` block containing LaTeX-like tokens into a display equation. Legitimate non-math bracketed content with `\frac`, `=`, `{` etc. (e.g. some config snippets) could be wrongly rendered as math. This is an intentional convenience heuristic; rather than change behavior (which would regress legitimate math), it is now **documented** in `README.md` under "Markdown & math rendering notes," advising users to wrap display math explicitly in `$$ ... $$` to avoid ambiguity.
 
-4 tests covering: page renders with header branding, empty state display, sidebar component presence, and chat input component presence.
-
-### MEDIUM: No tests for remaining components [FIXED]
-**Files with tests added**: `ChatMessage.vue`, `ChatInput.vue`, `AppSidebar.vue`
-
-ChatMessage (4 tests): user/assistant labels, thought process display, streaming indicator. ChatInput (2 tests): textarea rendering, placeholder text. AppSidebar (2 tests): sessions list rendering, empty state message.
-
-### MEDIUM: No test coverage report [FIXED]
-**File**: `vitest.config.ts`
-
-Added `@vitest/coverage-v8` with `v8` provider. Coverage configured with `text`, `lcov`, and `html` reporters. Thresholds: lines 50%, statements 50%, functions 40%, branches 30%. Covers `components/`, `composables/`, `services/`, `utils/`.
-
-### Add suggested: Lint and type-check scripts 
-`lint` and `typecheck` scripts added to `package.json`. `@nuxt/eslint` module configured in `nuxt.config.ts` with flat config in `eslint.config.mjs`.
+### 16. `exportToPDF` mutates and never restores `document.title` ✅ FIXED
+`composables/useChatState.ts:43-44` sets `document.title = ...` then prints but never restores it, so the browser tab keeps the generated filename as its title after printing. Save and restore the previous title.
 
 ---
 
-## Poor Coding Practices
+## 🔵 Minor / UX
 
-### HIGH: Duplicate `uid()` implementation [FIXED]
-**File**: `utils/uid.ts`
-
-Extracted to `utils/uid.ts`. Both `composables/useChatState.ts` and `services/session.service.ts` now import from this shared module. 4 tests added in `tests/utils/uid.spec.ts` covering UUID format, uniqueness, `crypto.randomUUID` path, and fallback path.
-
-### HIGH: Duplicate copy-to-clipboard logic [FIXED]
-**File**: `composables/useClipboard.ts`
-
-Created a shared `useClipboard` composable using `navigator.clipboard.writeText` with try/catch for environments without clipboard API. `ChatMessage.vue` and `CodeBlock.vue` now use it. 5 tests added in `tests/composables/useClipboard.spec.ts` covering initialization, clipboard API path, missing API handling, empty text guard, and auto-reset.
-
-### HIGH: System prompt hardcoded as a string literal [FIXED]
-**Files**: `.env.example`, `nuxt.config.ts`, `services/lm-studio.service.ts`, `composables/useChatState.ts`
-
-The system prompt is now configurable via `LLM_SYSTEM_PROMPT` environment variable. Added to `nuxt.config.ts` runtime config as `llmSystemPrompt` and documented in `.env.example`. The `sendChat` method accepts an optional `customSystemPrompt` parameter; the composable passes the configured value from runtime config. Falls back to the built-in prompt when no env var is set.
-
-### MEDIUM: CSS custom properties used inline instead of via Nuxt UI theme [FIXED]
-**File**: `pages/index.vue`
-
-Replaced `bg-[var(--ui-bg)]/80` and `to-[var(--ui-bg-elevated)]/40` with `bg-background/80` and `to-elevated/40` — the Nuxt UI v3 design token classes. No more `var(--ui-*)` references in any `.vue` files.
-
-### MEDIUM: Service instances created per composable call [FIXED]
-**File**: `composables/useChatState.ts`
-
-`LmStudioService` and `SessionService` are now instantiated at module level, outside the composable function. A single instance of each service is created when the module first loads, regardless of how many components call `useChatState()`.
-
-### MEDIUM: Mutable state exposed from composable [FIXED]
-**File**: `composables/useChatState.ts`
-
-State refs (`messages`, `selectedModel`, `availableModels`, `isStreaming`, `currentSessionPath`, `loadError`, `sessionRefreshTick`, `thinkingEnabled`) are now wrapped with `readonly()` before being returned. Components can only read state via `.value`; mutations must go through the provided functions (`sendMessage`, `deleteMessage`, `newSession`, etc.). Tests updated to use mutation functions instead of direct `.value` assignment.
-
-### MEDIUM: `useSessionPersistence` composable is defined but unused by `useChatState` [FIXED]
-**File**: `composables/useChatState.ts`
-
-`useChatState` now consumes `useSessionPersistence` for all session API calls. Replaced 5 raw `$fetch` calls (`read`, `create`, `rewrite`) with composable methods (`persistence.read()`, `persistence.create()`, `persistence.write()`). The persistence layer is the single source of truth for session API access.
-
-### LOW: `filename()` method on SessionService appears unused [FIXED]
-**File**: `services/session.service.ts`
-
-Removed the unused `filename()` method. The `SessionFsRepository` already has `toShortTimestamp()` which serves the same purpose.
-
-### LOW: `console.warn` calls in production [FIXED]
-**Files**: `components/StructuredDataViewer.vue`, `components/ChartRenderer.vue`
-
-`console.warn` calls now guarded with `if (import.meta.dev)`. Parse failure details only appear in the browser console during development, not in production builds.
-
-### LOW: `XMLParser` instance created inside computed [FIXED]
-**File**: `components/StructuredDataViewer.vue:111`
-
-A new `XMLParser` is created on every recomputation. Move the parser instance outside the computed.
+- `composables/useClipboard.ts` and `components/StructuredDataViewer.vue` both implement near-identical clipboard+copied-timer logic — consolidate into `useClipboard`. ✅ FIXED — `StructuredDataViewer` now uses `useClipboard`; copy path covered by `tests/components/StructuredDataViewer.spec.ts`.
+- `server/utils/rate-limit.ts` types `event` as `any` (line 14); use `H3Event` for type safety. The `setInterval` (line 6) is never cleared, preventing clean process exit in the SEA binary. ✅ FIXED — `event` typed as `H3Event`; interval handle stored and cleared on Nitro `close`.
+- `rate-limit.ts` keyed on `getRequestIP` with `xForwardedFor: true` — behind a proxy this can be spoofed via `X-Forwarded-For`; acceptable for local use but note it. ✅ ADDRESSED — documented inline in `rate-limit.ts`.
+- `ModelSelector` placeholder `<option value="" disabled>` remains in the DOM even after a model is selected; harmless but the disabled empty option can briefly flash. ✅ FIXED — placeholder now rendered with `v-if="!modelValue"`; covered by `tests/components/ModelSelector.spec.ts`.
+- `useChatState.sendMessage` watch on `selectedModel` force-enables thinking on model change (line 32), which combined with #2 means the user's preference is reset every time they switch models. ✅ FIXED — thinking now defaults on only for the first selection; user preference is preserved when switching models. Covered by `tests/composables/useChatState-streaming.spec.ts`.
+- `pages/index.vue` scroll/watch triggers `scrollToBottom` on every token; fine, but uses two nested `nextTick`s (line 121-123, 127-131) unnecessarily. ✅ FIXED — removed the nested `nextTick`.
+- `tests/` are present and reasonably structured; the functional bugs (#1–#4) are now covered by dedicated specs (`useChatState-streaming.spec.ts`, `useChatState-session.spec.ts`, `DataTable.spec.ts`), and additional component/repository/server specs cover the other fixes. ✅ ADDRESSED.
 
 ---
 
-## Nuxt / Vue Best Practice Deviations
-
-### HIGH: Missing lint/type-check tooling [FIXED]
-**Files**: `nuxt.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `package.json`
-
-- TypeScript strict mode enabled via `nuxt.config.ts` (`typescript: { strict: true }`)
-- `@nuxt/eslint` module added and `eslint.config.mjs` created with Nuxt 3 flat config
-- `vue-tsc` installed for type-checking
-- `lint` and `typecheck` npm scripts added to `package.json`
-
-### MEDIUM: Manual `$fetch` instead of `useFetch` / `useAsyncData`
-**Files**: `pages/index.vue:139,146`, `composables/useChatState.ts:181,219,232,246`
-
-The app uses raw `$fetch` for all API calls. While this works for a client-side SPA, Nuxt's `useFetch` and `useAsyncData` composables provide caching, request deduplication, and SSR support. At minimum, `useFetch` would provide automatic cleanup on component unmount.
-
-### MEDIUM: No `useHead` / SEO configuration
-**File**: `pages/index.vue`, also global
-
-No page title, meta description, or Open Graph tags. The app is a desktop tool so this is lower priority, but even desktop apps should set a proper `<title>`.
-
-### MEDIUM: No error boundary components
-**Files**: All components
-
-There's no `onErrorCaptured` hook or error boundary component. If any renderer component (ChartRenderer, StructuredDataViewer) throws during render, the entire chat page could crash.
-
-**Fix**: Add error boundaries around complex renderers using `onErrorCaptured` or `<NuxtErrorBoundary>`.
-
-### LOW: Components use `.value` in templates through composable returns
-**File**: `pages/index.vue:7,22,48,62,80-87,94-99`
-
-While technically correct (the composable returns refs, so templates access `.value`), the idiomatic Vue pattern is to destructure the composable return and use auto-unwrapping in templates:
-```vue
-<!-- Unconventional -->
-{{ chat.messages.value.length }}
-<!-- Idiomatic -->
-const { messages, isStreaming } = useChatState()
-{{ messages.length }}
-```
-
-### LOW: Missing `definePageMeta` on main page
-**File**: `pages/index.vue`
-
-No page metadata defined. While not required, `definePageMeta` is a Nuxt convention that enables middleware, layout selection, and page-level configuration.
-
-### LOW: Auto-scrolling uses imperative DOM access
-**File**: `pages/index.vue:162-171`
-
-```ts
-messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-```
-
-While functional, Nuxt/Vue prefers declarative approaches. Consider using `scrollBehavior` or `IntersectionObserver`.
-
----
-
-## Positive Findings
-
-- **Well-structured architecture**: Clear separation: Components → Composables → Services → Repositories → Server API. This is excellent for maintainability.
-- **Good use of Nuxt server routes**: Appropriate use of Nitro for the backend layer.
-- **Thorough release planning**: `PLAN-Release-1.1.0.md` demonstrates thoughtful architectural decision-making.
-- **DOMPurify for SVG**: Proactive XSS prevention for SVG content.
-- **markdown-it configured securely**: `html: false`, link `rel="noopener noreferrer"`.
-- **Base64 image sanitization**: Images are stripped from content before sending to LLM API.
-- **Streaming support**: Handles both OpenAI and custom SSE event types with a well-structured parser.
-- **Session persistence as markdown**: Human-readable format is an excellent design choice.
-- **SSR safety patterns**: Components use `import.meta.client` checks and `clientOnly` patterns where needed.
-- **Comprehensive format support**: JSON, YAML, TOML, XML trees, CSV/TSV tables, SVG, charts, code highlighting, KaTeX math.
-               
----               
-               
-## Summary               
-               
-| Priority   | Category                | Count | Completed |
-|------------|-------------------------|-------|-----------|
-| **HIGH**   | Security                | 3     | 3         |✅
-| **MEDIUM** | Security                | 2     | 2         |✅
-| **HIGH**   | Bugs                    | 2     | 2         |✅
-| **MEDIUM** | Bugs                    | 4     | 4         |✅
-| **HIGH**   | Performance             | 2     | 2         |✅
-| **MEDIUM** | Performance             | 2     | 2         |✅
-| **HIGH**   | Coding Practices        | 3     | 3         |✅
-| **MEDIUM** | Coding Practices        | 4     | 4         |✅
-| **HIGH**   | Nuxt/Vue Best Practices | 1     | 1         |✅
-| **MEDIUM** | Nuxt/Vue Best Practices | 3     | 0         |
-| **HIGH**   | Missing Tests           | 4     | 4         |✅
-| **MEDIUM** | Missing Tests           | 2     | 2         |✅
-| **LOW**    | Various                 | 13    | 5         |
-        
-**Top 5 actions to prioritize:**
-
-1. Fix the path traversal vulnerability in session API endpoints (security — HIGH)
-2. Add input validation and authentication to all API routes (security — HIGH)
-3. Optimize MarkdownRenderer to avoid full re-parse on each streaming token (performance — HIGH)
-4. Write tests for `useChatState`, `LmStudioService`, and server API routes (testing — HIGH)
-5. Add ESLint and TypeScript strict mode configuration (best practices — HIGH)
+## Priority order to fix
+1. #1 Stop streaming (broken core interaction)
+2. #2 Thinking toggle (broken documented feature)
+3. #3 CSV export truncation (data-loss on export)
+4. #4 Session created timestamp drift
+5. #6 / #7 document and harden the local-only security assumptions
+6. Clean up dead code (#9) and surface parse/validation errors (#5, #13, #14)

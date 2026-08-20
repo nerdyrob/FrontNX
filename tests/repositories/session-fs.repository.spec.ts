@@ -51,6 +51,19 @@ describe('SessionFsRepository', () => {
     await expect(repository.append('../../../etc/passwd', 'block')).rejects.toThrow('Path traversal')
   })
 
+  it('rejects session files that are too large (#8)', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+    const meta: SessionMeta = { model: 'gemma-4', service: 'LM Studio', created: '2026-07-16T21:37:34.755Z' }
+    const path = await repository.create(meta)
+
+    const huge = 'x'.repeat(30 * 1024 * 1024) // 30 MB > 25 MB limit
+    await expect(repository.write(path, huge)).rejects.toThrow('too large')
+    await expect(repository.append(path, huge)).rejects.toThrow('too large')
+  })
+
   it('aggregates session token and processing totals from assistant messages', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
     tempDirs.push(tempDir)
@@ -103,5 +116,27 @@ describe('SessionFsRepository', () => {
     expect(sessions[0].timestamp).toBe('2026-07-16T21:37:34.755Z')
     expect(sessions[0].totalTokens).toBe(270)
     expect(sessions[0].totalProcessingTimeMs).toBe(33000)
+  })
+
+  it('returns opaque filenames from create/list and resolves them server-side (#6)', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'frontnx-session-'))
+    tempDirs.push(tempDir)
+
+    const repository = new SessionFsRepository(tempDir)
+    const meta: SessionMeta = { model: 'gemma-4', service: 'LM Studio', created: '2026-07-16T21:37:34.755Z' }
+
+    const id = await repository.create(meta)
+    expect(id).not.toContain('/')
+    expect(id).not.toContain('\\')
+
+    await repository.write(id, '# session content')
+    const sessions = await repository.list()
+    expect(sessions[0].path).toBe(id)
+
+    const content = await repository.read(id)
+    expect(content).toContain('# session content')
+
+    await repository.delete(id)
+    expect(await repository.list()).toHaveLength(0)
   })
 })

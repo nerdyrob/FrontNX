@@ -25,12 +25,21 @@ export function useChatState() {
   const loadError = ref<string | null>(null)
   const sessionRefreshTick = ref(0)
   const thinkingEnabled = ref(true)
+  // Captured once when a session is first created so subsequent saves
+  // don't rewrite the original creation timestamp (see #4 in code-review.md).
+  const sessionCreatedAt = ref<string | null>(null)
 
   const thinkingSupported = computed(() => !!selectedModel.value)
 
   watch(selectedModel, (_new, old) => {
-    if (old && _new !== old) thinkingEnabled.value = true
+    // Default thinking on for the first model selection, but don't override the
+    // user's explicit preference when switching between models (code-review Minor/UX).
+    if (!old && _new) thinkingEnabled.value = true
   })
+
+  function setThinkingEnabled(value: boolean) {
+    thinkingEnabled.value = value
+  }
 
   async function exportToPDF() {
     if (!currentSessionPath.value) return
@@ -40,7 +49,14 @@ export function useChatState() {
       .pop()
       ?.replace(/\.md$/, '') || 'chat-session'
 
+    const previousTitle = document.title
     document.title = `session-${fileName}`
+    const restore = () => {
+      document.title = previousTitle
+    }
+    // Restore after the print dialog settles, even if the user cancels.
+    setTimeout(restore, 1000)
+    window.addEventListener('afterprint', restore, { once: true })
     setTimeout(() => window.print(), 50)
   }
 
@@ -60,6 +76,14 @@ export function useChatState() {
 
   function setSelectedModel(model: string) {
     selectedModel.value = model
+  }
+
+  let activeController: AbortController | null = null
+  let stoppedManually = false
+
+  function stopStreaming() {
+    stoppedManually = true
+    activeController?.abort()
   }
 
   async function sendMessage(text: string) {
@@ -98,6 +122,8 @@ export function useChatState() {
     }
     const timeoutMs = Number(config.public.chatRequestTimeoutMs ?? 0)
     const requestController = new AbortController()
+    activeController = requestController
+    stoppedManually = false
     const timeoutHandle = timeoutMs > 0
       ? setTimeout(() => requestController.abort(), timeoutMs)
       : null
@@ -188,16 +214,19 @@ export function useChatState() {
       accReasoning = ''
       const last = findAssistant()
       const errObject = err instanceof Error ? err : (typeof err === 'object' && err !== null ? err as Record<string, unknown> : null)
-      const isTimeout = errObject?.name === 'AbortError' && timeoutMs > 0
+      const isManualStop = stoppedManually
+      const isTimeout = errObject?.name === 'AbortError' && timeoutMs > 0 && !isManualStop
       if (last) {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
-        last.content = isTimeout
-          ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
-          : `Error: ${(errObject && typeof errObject.message === 'string' ? errObject.message : null) ?? 'Request failed'}`
+        last.content = isManualStop
+          ? 'Stopped by user.'
+          : isTimeout
+            ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
+            : `Error: ${(errObject && typeof errObject.message === 'string' ? errObject.message : null) ?? 'Request failed'}`
         last.responseStatus = 'incomplete'
-        last.stopReason = isTimeout ? 'timeout' : undefined
+        last.stopReason = isManualStop ? 'userStopped' : (isTimeout ? 'timeout' : undefined)
       }
 
       // Only persist if a session already exists (avoid creating orphaned error-only files)
@@ -210,6 +239,8 @@ export function useChatState() {
       }
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)
+      activeController = null
+      stoppedManually = false
       isStreaming.value = false
     }
   }
@@ -221,6 +252,7 @@ export function useChatState() {
       messages.value = loaded
       currentSessionPath.value = path
       if (meta.model) selectedModel.value = meta.model
+      if (meta.created) sessionCreatedAt.value = meta.created
     } catch (err) {
       console.error('Failed to load session:', err)
     }
@@ -229,6 +261,7 @@ export function useChatState() {
   async function newSession() {
     messages.value = []
     currentSessionPath.value = null
+    sessionCreatedAt.value = null
   }
 
   function deleteMessage(index: number) {
@@ -238,29 +271,25 @@ export function useChatState() {
     }
   }
 
-  function deleteRange(start: number, end: number) {
-    messages.value.splice(start, end - start)
-    if (currentSessionPath.value) {
-      rewriteSessionFile()
+  function buildMeta(): SessionMeta {
+    // Preserve the original creation timestamp across saves (code-review #4).
+    const created = sessionCreatedAt.value ?? new Date().toISOString()
+    sessionCreatedAt.value = created
+    return {
+      model: selectedModel.value,
+      service: config.public.llmServerName,
+      created,
     }
   }
 
   async function saveSession() {
-    const content = _sessionService.buildMarkdown(messages.value, {
-      model: selectedModel.value,
-      service: config.public.llmServerName,
-      created: new Date().toISOString(),
-    })
+    const meta = buildMeta()
+    const content = _sessionService.buildMarkdown(messages.value, meta)
 
     const path = currentSessionPath.value
     if (path) {
       await persistence.write(path, content)
     } else {
-      const meta = {
-        model: selectedModel.value,
-        service: config.public.llmServerName,
-        created: new Date().toISOString(),
-      }
       const res = await persistence.create(meta)
       // Only store the path after the content rewrite succeeds
       await persistence.write(res.path, content)
@@ -271,11 +300,8 @@ export function useChatState() {
 
   async function rewriteSessionFile() {
     if (!currentSessionPath.value) return
-    const content = _sessionService.buildMarkdown(messages.value, {
-      model: selectedModel.value,
-      service: config.public.llmServerName,
-      created: new Date().toISOString(),
-    })
+    const meta = buildMeta()
+    const content = _sessionService.buildMarkdown(messages.value, meta)
     await persistence.write(currentSessionPath.value, content)
     sessionRefreshTick.value++
   }
@@ -295,8 +321,9 @@ export function useChatState() {
     loadSession,
     newSession,
     deleteMessage,
-    deleteRange,
     exportToPDF,
     setSelectedModel,
+    setThinkingEnabled,
+    stopStreaming,
   }
 }

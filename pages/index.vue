@@ -97,7 +97,8 @@
           :thinking="chat.thinkingEnabled.value"
           :thinking-supported="chat.thinkingSupported.value"
           @send="handleSend"
-          @update:thinking="chat.thinkingEnabled.value = $event"
+          @stop="chat.stopStreaming"
+          @update:thinking="chat.setThinkingEnabled($event)"
         />
       </div>
     </div>
@@ -118,9 +119,7 @@ const currentSessionId = ref<string | null>(null)
 
 function handleSend(text: string) {
   chat.sendMessage(text)
-  nextTick(() => {
-    scrollToBottom()
-  })
+  scrollToBottom()
 }
 
 function scrollToBottom() {

@@ -231,7 +231,8 @@ const visiblePageNumbers = computed(() => {
 })
 
 function exportCsv() {
-  const csv = unparseCsv(data.value)
+  // Export the full dataset, not the truncated view (code-review #3).
+  const csv = unparseCsv(rawData.value)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

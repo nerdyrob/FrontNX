@@ -73,4 +73,13 @@ describe('validateSessionMeta', () => {
     expect(() => validateSessionMeta({})).toThrow()
     expect(() => validateSessionMeta({ model: 'gpt-4' })).toThrow()
   })
+
+  it('rejects empty model and created values', () => {
+    expect(() => validateSessionMeta({ model: '', service: 'x', created: '2026-01-01T00:00:00Z' })).toThrow()
+    expect(() => validateSessionMeta({ model: 'gpt-4', service: 'x', created: '' })).toThrow()
+  })
+
+  it('rejects an invalid created date', () => {
+    expect(() => validateSessionMeta({ model: 'gpt-4', service: 'x', created: 'not-a-date' })).toThrow()
+  })
 })

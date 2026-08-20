@@ -77,8 +77,10 @@
 </template>
 
 <script setup lang="ts">
+import type { SessionListItem } from '~/repositories/session.repository'
+
 const props = withDefaults(defineProps<{
-  sessions: { id: string; title: string; preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number }[]
+  sessions: SessionListItem[]
   currentSessionId: string | null
   open?: boolean
 }>(), { open: true })

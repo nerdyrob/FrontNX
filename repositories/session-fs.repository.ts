@@ -6,6 +6,9 @@ import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
 import { SessionService } from '../services/session.service'
 
+// Guard against unbounded session files (code-review #8).
+const MAX_SESSION_FILE_BYTES = 25 * 1024 * 1024
+
 function toShortTimestamp(iso: string): string {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -73,7 +76,7 @@ export class SessionFsRepository implements ISessionRepository {
   async create(meta: SessionMeta): Promise<string> {
     const filename = `${toShortTimestamp(meta.created)}.md`
     const filePath = join(this.baseDir, filename)
-    if (existsSync(filePath)) return filePath
+    if (existsSync(filePath)) return filename
 
     const header = [
       '---',
@@ -85,7 +88,9 @@ export class SessionFsRepository implements ISessionRepository {
     ].join('\n')
 
     await writeFile(filePath, header, 'utf-8')
-    return filePath
+    // Return the opaque filename (not the absolute path) so the client
+    // never learns the server's directory layout (code-review #6).
+    return filename
   }
 
   async read(path: string): Promise<string> {
@@ -93,11 +98,20 @@ export class SessionFsRepository implements ISessionRepository {
   }
 
   async write(path: string, content: string): Promise<void> {
+    this.assertSize(content)
     await writeFile(this.resolveSafePath(path), content, 'utf-8')
   }
 
   async append(path: string, block: string): Promise<void> {
+    this.assertSize(block)
     await appendFile(this.resolveSafePath(path), block + '\n', 'utf-8')
+  }
+
+  private assertSize(content: string): void {
+    const bytes = new TextEncoder().encode(content).length
+    if (bytes > MAX_SESSION_FILE_BYTES) {
+      throw new Error('Session file too large')
+    }
   }
 
   async list(): Promise<SessionListItem[]> {
@@ -108,7 +122,8 @@ export class SessionFsRepository implements ISessionRepository {
         const id = f.replace(/\.md$/, '')
         const filePath = join(this.baseDir, f)
         const { preview, timestamp, totalTokens, totalProcessingTimeMs } = await this.extractPreview(filePath)
-        return { id, path: filePath, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
+        // `path` is the opaque filename, resolved server-side from baseDir.
+        return { id, path: f, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
       }),
     )
     return entries.sort((a, b) => b.id.localeCompare(a.id))

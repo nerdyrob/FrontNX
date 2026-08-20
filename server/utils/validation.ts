@@ -29,9 +29,14 @@ export function validatePlainObject(value: unknown, name: string): Record<string
 
 export function validateSessionMeta(value: unknown): { model: string; service: string; created: string } {
   const obj = validatePlainObject(value, 'meta')
+  const model = validateNonEmptyString(obj.model, 'meta.model')
+  const created = validateNonEmptyString(obj.created, 'meta.created')
+  if (Number.isNaN(new Date(created).getTime())) {
+    throw createError({ statusCode: 400, message: '"meta.created" must be a valid date' })
+  }
   return {
-    model: validateString(obj.model, 'meta.model'),
+    model,
     service: validateString(obj.service, 'meta.service'),
-    created: validateString(obj.created, 'meta.created'),
+    created,
   }
 }

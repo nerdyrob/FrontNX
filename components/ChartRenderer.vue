@@ -26,8 +26,11 @@
         <Scatter :data="chartData" :options="chartOptions" />
       </div>
       <div v-else class="text-sm text-dimmed">
-        Unknown chart type: {{ chartType }}
+        {{ `Unknown chart type: ${chartType}` }}
       </div>
+    </div>
+    <div v-else class="p-4 text-sm text-dimmed">
+      {{ parseError || 'No chart to display' }}
     </div>
   </div>
 </template>
@@ -69,10 +72,25 @@ const parsed = computed(() => {
   }
 })
 
-const showChart = computed(() => parsed.value.config && !parsed.value.isEmpty)
+const showChart = computed(() => parsed.value.config && !parsed.value.isEmpty && !parseError.value)
 const chartType = computed(() => parsed.value.config?.type || 'bar')
 const chartData = computed(() => parsed.value.config?.data || {})
 const chartOptions = computed(() => parsed.value.config?.options || { responsive: true, maintainAspectRatio: true })
+
+const KNOWN_CHART_TYPES = ['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea', 'scatter']
+
+const parseError = computed<string | null>(() => {
+  if (parsed.value.isEmpty) return 'Chart config is empty'
+  const cfg = parsed.value.config
+  if (!cfg) return 'Invalid chart JSON'
+  if (typeof cfg.type !== 'string' || !KNOWN_CHART_TYPES.includes(cfg.type)) {
+    return `Unknown chart type: ${cfg.type ?? 'undefined'}`
+  }
+  if (!cfg.data || typeof cfg.data !== 'object') {
+    return 'Chart config is missing a "data" object'
+  }
+  return null
+})
 </script>
 
 <style scoped>

@@ -1,5 +1,8 @@
 <template>
   <div v-if="!parseResult.isEmpty" class="structured-data-viewer rounded-lg border border-default bg-elevated overflow-hidden">
+    <div v-if="parseResult.parseError" class="px-4 py-2 text-[11px] text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-b border-default">
+      {{ parseResult.parseError }}
+    </div>
     <div class="flex items-center justify-between px-4 py-1.5 border-b border-default bg-muted/50">
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-medium text-dimmed uppercase tracking-wider">{{ formatLabel }}</span>
@@ -57,6 +60,7 @@
 import { parse as parseYaml } from 'yaml'
 import { parse as parseToml } from '@iarna/toml'
 import { XMLParser } from 'fast-xml-parser'
+import { useClipboard } from '~/composables/useClipboard'
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -69,12 +73,7 @@ const props = defineProps<{
   lang: string
 }>()
 
-const copied = ref(false)
-let copiedTimer: ReturnType<typeof setTimeout> | null = null
-
-onBeforeUnmount(() => {
-  if (copiedTimer) clearTimeout(copiedTimer)
-})
+const { copied, copy: copyText } = useClipboard()
 
 type ViewMode = 'raw' | 'pretty' | 'tree'
 const viewMode = ref<ViewMode>('raw')
@@ -147,13 +146,6 @@ const rootNodes = computed(() => {
 async function copyFormatted() {
   const text = viewMode.value === 'raw' ? props.code : prettyFormatted.value
   if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    copied.value = true
-    if (copiedTimer) clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => { copied.value = false }, 1500)
-  } catch {
-    copied.value = false
-  }
+  await copyText(text)
 }
 </script>

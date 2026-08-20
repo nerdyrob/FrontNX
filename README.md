@@ -199,7 +199,6 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 │   ├── api/lm/[...].ts        # LM API proxy
 │   └── api/session/           # Session persistence API routes
 │       ├── create.post.ts
-│       ├── append.post.ts
 │       ├── rewrite.post.ts
 │       ├── delete.delete.ts
 │       ├── list.get.ts
@@ -250,3 +249,17 @@ The `service` field in session files uses the `llmServerName` config value.
 - Markdown session files are human-readable and portable
 - Thinking/reasoning toggle (supported by the LLM server)
 - PDF export via browser print
+
+### Markdown & math rendering notes
+
+The renderer supports inline (`$...$`) and display (`$$...$$`) math via KaTeX, plus fenced code blocks (` ```chart `, ` ```svg `, ` ```csv `/` ```tsv `, ` ```json `/`yaml`/`toml`/`xml`, and ` ```sql `/`graphql`) for interactive viewers.
+
+It also **auto-detects bracketed math**: a fenced-by-whitespace block of the form
+
+```text
+[
+  \frac{a}{b} = c
+]
+```
+
+that contains LaTeX-like tokens (e.g. `\frac`, `\sqrt`, `\sum`, `=`, `{`) is rendered as a display equation without explicit delimiters. This is a convenience heuristic — legitimate non-math content that happens to contain those tokens (some config or data snippets) may be mis-classified as math. To avoid ambiguity, wrap display math explicitly in `$$ ... $$` (or `\[ ... \]`) instead of relying on bare `[ ... ]` blocks. (See code-review #15.)

@@ -19,12 +19,5 @@ export function useSessionPersistence() {
     })
   }
 
-  async function append(path: string, block: string) {
-    return $fetch('/api/session/append', {
-      method: 'POST',
-      body: { path, block },
-    })
-  }
-
-  return { create, read, write, append }
+  return { create, read, write }
 }

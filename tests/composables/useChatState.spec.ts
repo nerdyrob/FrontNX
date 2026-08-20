@@ -48,12 +48,6 @@ describe('useChatState', () => {
     expect(chat.messages.value).toHaveLength(0)
   })
 
-  it('deleteRange does nothing when no messages exist', () => {
-    const chat = useChatState()
-    chat.deleteRange(0, 5)
-    expect(chat.messages.value).toHaveLength(0)
-  })
-
   it('sendMessage does nothing without selected model', async () => {
     const chat = useChatState()
     await chat.sendMessage('hello')

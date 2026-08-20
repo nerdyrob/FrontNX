@@ -1,5 +1,5 @@
 // @vitest-environment nuxt
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import StructuredDataViewer from '~/components/StructuredDataViewer.vue'
 
@@ -29,6 +29,14 @@ describe('StructuredDataViewer', () => {
       props: { code: '{invalid}', lang: 'json' },
     })
     expect(wrapper.find('pre').exists()).toBe(true)
+    expect(wrapper.text()).toContain('{invalid}')
+  })
+
+  it('surfaces a parse error message for invalid JSON (#13)', () => {
+    const wrapper = mount(StructuredDataViewer, {
+      props: { code: '{invalid}', lang: 'json' },
+    })
+    expect(wrapper.text()).toContain('Failed to parse JSON')
     expect(wrapper.text()).toContain('{invalid}')
   })
 
@@ -84,5 +92,26 @@ describe('StructuredDataViewer', () => {
     })
     expect(wrapper.text()).toContain('title')
     expect(wrapper.text()).toContain('example')
+  })
+
+  it('copies formatted content via the shared clipboard composable (#1 Minor/UX)', async () => {
+    const writeSpy = vi.fn().mockResolvedValue(undefined)
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(writeSpy)
+    } else {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeSpy },
+        configurable: true,
+      })
+    }
+
+    const wrapper = mount(StructuredDataViewer, {
+      props: { code: '{"x": 1}', lang: 'json' },
+    })
+    const copyBtn = wrapper.find('[aria-label="Copy formatted"]')
+    expect(copyBtn.exists()).toBe(true)
+    await copyBtn.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(writeSpy).toHaveBeenCalledWith('{"x": 1}')
   })
 })
