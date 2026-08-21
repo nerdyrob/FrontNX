@@ -55,4 +55,55 @@ describe('AppSidebar search & rename', () => {
     expect(wrapper.emitted('rename')).toBeTruthy()
     expect(wrapper.emitted('rename')![0]).toEqual(['1', 'Brand New Name'])
   })
+
+  it('enters delete mode and emits deleteBatch with selected ids', async () => {
+    const sessions = [
+      makeSession({ id: 'a', title: 'Session A' }),
+      makeSession({ id: 'b', title: 'Session B' }),
+      makeSession({ id: 'c', title: 'Session C' }),
+    ]
+    const wrapper = mount(AppSidebar, {
+      props: { sessions, currentSessionId: null, open: true },
+      global: { stubs: { UIcon: true, UButton: true } },
+    })
+
+    // Enter delete mode via the trashcan header button.
+    const trashButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete sessions')
+    expect(trashButton).toBeTruthy()
+    await trashButton!.trigger('click')
+
+    // Header should show "Sessions" replaced by a count.
+    expect(wrapper.text()).toContain('selected')
+
+    // Select two sessions by clicking them.
+    const items = wrapper.findAll('.group.relative')
+    expect(items.length).toBe(3)
+    await items[0].trigger('click')
+    await items[1].trigger('click')
+
+    // The confirm-delete button should now be enabled.
+    const confirmButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete selected')
+    expect(confirmButton).toBeTruthy()
+  })
+
+  it('exits delete mode when Cancel is clicked', async () => {
+    const wrapper = mount(AppSidebar, {
+      props: { sessions: [makeSession()], currentSessionId: null, open: true },
+      global: { stubs: { UIcon: true, UButton: true } },
+    })
+
+    // Enter delete mode.
+    const trashButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Delete sessions')
+    await trashButton!.trigger('click')
+    expect(wrapper.text()).toContain('selected')
+
+    // Cancel.
+    const cancelButton = wrapper.findAll('button').find(b => b.attributes('title') === 'Cancel')
+    expect(cancelButton).toBeTruthy()
+    await cancelButton!.trigger('click')
+
+    // Back to normal — "Sessions" heading is back.
+    expect(wrapper.text()).toContain('Sessions')
+    expect(wrapper.text()).not.toContain('selected')
+  })
 })
