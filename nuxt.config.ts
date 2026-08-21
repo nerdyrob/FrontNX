@@ -20,6 +20,10 @@ export default defineNuxtConfig({
       llmServerName: '',
       chatRequestTimeoutMs: 900000,
       llmSystemPrompt: '',
+      // Size / body limits (bytes).  Overridable via NUXT_PUBLIC_* env vars.
+      maxImageDisplayBytes: 10 * 1024 * 1024,   // Base64Image.vue display cap
+      maxSessionFileBytes: 25 * 1024 * 1024,     // session-fs.repository.ts write cap
+      maxProxyBodyBytes: 10 * 1024 * 1024,       // LM proxy request body cap
     },
   },
   typescript: {

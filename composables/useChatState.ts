@@ -304,11 +304,15 @@ export function useChatState() {
         if (!last.createdAt) {
           last.createdAt = new Date().toISOString()
         }
+        const errMsg = errObject && typeof errObject.message === 'string' ? errObject.message : null
+        const isPayloadTooLarge = errMsg && /413|too large|payload size/i.test(errMsg)
         last.content = isManualStop
           ? 'Stopped by user.'
           : isTimeout
             ? `Error: Request timed out after ${Math.round(timeoutMs / 1000)}s`
-            : `Error: ${(errObject && typeof errObject.message === 'string' ? errObject.message : null) ?? 'Request failed'}`
+            : isPayloadTooLarge
+              ? 'The message is too large to send. Try reducing the number of attached images or shortening the conversation.'
+              : `Error: ${errMsg ?? 'Request failed'}`
         last.responseStatus = 'incomplete'
         last.stopReason = isManualStop ? 'userStopped' : (isTimeout ? 'timeout' : undefined)
       }

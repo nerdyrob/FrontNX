@@ -23,7 +23,7 @@
             <div v-if="settingsOpen" class="fixed inset-0 z-[60]" @click="closeSettings" />
             <div
               v-if="settingsOpen"
-              class="fixed z-[70] rounded-lg border border-default bg-popover shadow-lg"
+              class="fixed z-[70] rounded-lg border border-default bg-elevated shadow-lg"
               :style="{ top: `${settingsPos.top}px`, left: `${settingsPos.left}px` }"
             >
               <ChatSettings
@@ -54,7 +54,7 @@
             <div v-if="exportMenuOpen" class="fixed inset-0 z-[60]" @click="closeExportMenu" />
             <div
               v-if="exportMenuOpen"
-              class="fixed z-[70] w-44 rounded-lg border border-default bg-popover p-1 shadow-lg"
+              class="fixed z-[70] w-44 rounded-lg border border-default bg-elevated p-1 shadow-lg"
               :style="{ top: `${exportPos.top}px`, left: `${exportPos.left}px` }"
             >
               <button
@@ -62,18 +62,6 @@
                 @click="exportAs('markdown')"
               >
                 <UIcon name="i-lucide-file-text" class="w-4 h-4" /> Markdown
-              </button>
-              <button
-                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left hover:bg-muted"
-                @click="exportAs('json')"
-              >
-                <UIcon name="i-lucide-braces" class="w-4 h-4" /> JSON
-              </button>
-              <button
-                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left hover:bg-muted"
-                @click="exportAs('text')"
-              >
-                <UIcon name="i-lucide-file-type" class="w-4 h-4" /> Plain text
               </button>
               <button
                 class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm hover:bg-muted"
@@ -277,8 +265,9 @@ function newSession() {
 }
 
 async function loadSessions() {
-  if (searchQuery.value.trim()) {
-    sessions.value = await $fetch('/api/session/search', { params: { query: searchQuery.value } })
+  const q = searchQuery.value.trim()
+  if (q) {
+    sessions.value = await $fetch('/api/session/search', { params: { query: q } })
   } else {
     sessions.value = await $fetch('/api/session/list')
   }

@@ -6,8 +6,16 @@ import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
 import { SessionService } from '../services/session.service'
 
-// Guard against unbounded session files (code-review #8).
-const MAX_SESSION_FILE_BYTES = 25 * 1024 * 1024
+// Guard against unbounded session files (code-review #8).  The limit is
+// configurable via NUXT_PUBLIC_MAX_SESSION_FILE_BYTES; falls back to 25 MB
+// when running outside a Nuxt context (e.g. unit tests).
+function getMaxSessionFileBytes(): number {
+  try {
+    return Number(useRuntimeConfig().public.maxSessionFileBytes) || 25 * 1024 * 1024
+  } catch {
+    return 25 * 1024 * 1024
+  }
+}
 
 function toShortTimestamp(iso: string): string {
   const d = new Date(iso)
@@ -109,7 +117,7 @@ export class SessionFsRepository implements ISessionRepository {
 
   private assertSize(content: string): void {
     const bytes = new TextEncoder().encode(content).length
-    if (bytes > MAX_SESSION_FILE_BYTES) {
+    if (bytes > getMaxSessionFileBytes()) {
       throw new Error('Session file too large')
     }
   }
@@ -169,7 +177,11 @@ export class SessionFsRepository implements ISessionRepository {
       const content = await readFile(filePath, 'utf-8')
       const { meta, messages } = this.sessionService.parseMarkdown(content)
       const firstUserMessage = messages.find((message) => message.role === 'user')
-      const preview = firstUserMessage?.content.replace(/\s+/g, ' ').trim().slice(0, 120) || '(empty)'
+      const preview = firstUserMessage?.content
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '[image]')  // collapse image markdown
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 120) || '(empty)'
       const totalTokens = messages.reduce((sum, message) => sum + (message.metrics?.tokensUsed ?? 0), 0)
       const totalProcessingTimeMs = messages.reduce((sum, message) => sum + (message.metrics?.processingTimeMs ?? 0), 0)
 

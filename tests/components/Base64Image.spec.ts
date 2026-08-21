@@ -25,8 +25,8 @@ describe('Base64Image', () => {
     expect(wrapper.find('img').attributes('loading')).toBe('lazy')
   })
 
-  it('shows size warning for oversized images (>500 KB)', () => {
-    const src = makeBase64(600 * 1024)
+  it('shows size warning for oversized images (>10 MB)', () => {
+    const src = makeBase64(11 * 1024 * 1024)
     const wrapper = mount(Base64Image, { props: { src } })
     expect(wrapper.text()).toContain('too large')
     expect(wrapper.find('img').exists()).toBe(false)

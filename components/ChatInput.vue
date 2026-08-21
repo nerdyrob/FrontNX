@@ -47,6 +47,7 @@
           :disabled="disabled"
           @input="resizeTextarea"
           @keydown.enter.exact.prevent="send"
+          @paste="onPaste"
         />
         <div class="flex items-center gap-1 shrink-0">
           <button
@@ -86,7 +87,8 @@
       </div>
       <p class="text-[10px] text-center text-dimmed mt-2">
         Press <kbd class="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Enter</kbd> to send ·
-        <kbd class="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Shift+Enter</kbd> for new line
+        <kbd class="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Shift+Enter</kbd> for new line ·
+        Paste images with <kbd class="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Ctrl+V</kbd>
       </p>
     </div>
   </div>
@@ -135,6 +137,31 @@ async function onFilesSelected(event: Event) {
   input.value = ''
 }
 
+async function onPaste(event: ClipboardEvent) {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  const imageFiles: File[] = []
+  for (const item of Array.from(items)) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) imageFiles.push(file)
+    }
+  }
+
+  if (imageFiles.length === 0) return
+  event.preventDefault()
+
+  for (const file of imageFiles) {
+    try {
+      const dataUrl = await readImageAsDataUrl(file)
+      images.value.push(dataUrl)
+    } catch {
+      // Ignore unreadable images.
+    }
+  }
+}
+
 function removeImage(index: number) {
   images.value.splice(index, 1)
 }
@@ -164,4 +191,8 @@ onMounted(() => {
 watch(text, () => {
   nextTick(() => resizeTextarea())
 })
+
+// Expose onPaste for testing (clipboard events can't carry clipboardData in
+// happy-dom's Event constructor, so tests invoke the handler directly).
+defineExpose({ onPaste })
 </script>

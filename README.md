@@ -42,6 +42,10 @@ cp .env.example .env
 | `LLM_SERVER_BASE_URL` | — | Base URL of the LLM server API |
 | `LLM_SERVER_NAME` | — | Display name shown in UI and saved to session files |
 | `CHAT_REQUEST_TIMEOUT_MS` | `900000` | Request timeout in ms (15 minutes) |
+| `LLM_SYSTEM_PROMPT` | *(empty)* | Extra instructions appended to the built-in system prompt |
+| `MAX_IMAGE_DISPLAY_BYTES` | `10485760` (10 MB) | Image rendering cap — larger images show a warning instead of rendering inline |
+| `MAX_SESSION_FILE_BYTES` | `26214400` (25 MB) | Session file write cap — rejects writes that would exceed this |
+| `MAX_PROXY_BODY_BYTES` | `10485760` (10 MB) | LM proxy request body cap — rejects requests that would exceed this |
 
 ## Development
 

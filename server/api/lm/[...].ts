@@ -30,11 +30,13 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Prevent large request bodies from being proxied
+  // Limit proxied request body size.  Configurable via
+  // NUXT_PUBLIC_MAX_PROXY_BODY_BYTES (default 10 MB).
   if (body) {
     const size = new TextEncoder().encode(JSON.stringify(body)).length
-    if (size > 200_000) {
-      throw createError({ statusCode: 413, message: 'Request too large' })
+    const maxBody = Number(config.public.maxProxyBodyBytes) || 10 * 1024 * 1024
+    if (size > maxBody) {
+      throw createError({ statusCode: 413, message: `Request too large (max ${Math.round(maxBody / 1024 / 1024)} MB)` })
     }
   }
 

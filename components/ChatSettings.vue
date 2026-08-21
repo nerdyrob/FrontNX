@@ -24,13 +24,13 @@
     <div>
       <div class="flex items-center justify-between mb-1">
         <span class="font-medium">Max tokens</span>
-        <span class="text-[11px] text-dimmed">{{ maxTokens ?? 'unset' }}</span>
+        <span class="text-[11px] text-dimmed">{{ maxTokens != null ? maxTokens : '' }}</span>
       </div>
       <input
         type="number"
         min="1"
         :value="maxTokens ?? ''"
-        placeholder="unset"
+        placeholder="e.g. 1024"
         class="w-full bg-elevated border border-default rounded px-2 py-1 outline-none focus:ring-2 focus:ring-primary/30"
         @input="emit('update:maxTokens', parseNullableNumber(($event.target as HTMLInputElement).value))"
       >

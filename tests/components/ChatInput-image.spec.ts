@@ -78,4 +78,65 @@ describe('ChatInput image attach', () => {
     await removeButton!.trigger('click')
     expect(wrapper.find('img').exists()).toBe(false)
   })
+
+  it('renders the paste hint in the footer', () => {
+    const wrapper = mount(ChatInput, {
+      global: { stubs: { UIcon: true, UButton: true } },
+    })
+    expect(wrapper.text()).toContain('Paste images')
+  })
+
+  it('accepts pasted images via onPaste handler', async () => {
+    const dataUrl = 'data:image/png;base64,PASTED'
+    mockFileReader(dataUrl)
+
+    const wrapper = mount(ChatInput, {
+      global: { stubs: { UIcon: true, UButton: true } },
+    })
+
+    // Call onPaste directly — happy-dom's ClipboardEvent doesn't support
+    // injecting clipboardData, so we invoke the exposed handler with a
+    // mock event object.
+    const file = new File(['p'], 'pasted.png', { type: 'image/png' })
+    const fakeEvent = {
+      clipboardData: {
+        items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }],
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent
+
+    await (wrapper.vm as any).onPaste(fakeEvent)
+    await nextTick()
+    await new Promise(r => setTimeout(r, 20))
+
+    // A preview thumbnail should appear.
+    expect(wrapper.find('img').exists()).toBe(true)
+
+    // Sending should include the pasted image.
+    await wrapper.find('textarea').setValue('look at this')
+    await wrapper.find('textarea').trigger('keydown.enter')
+
+    const sent = wrapper.emitted('send')
+    expect(sent).toBeTruthy()
+    expect(sent![0][0]).toEqual({ text: 'look at this', images: [dataUrl] })
+  })
+
+  it('ignores paste events with no images', async () => {
+    const wrapper = mount(ChatInput, {
+      global: { stubs: { UIcon: true, UButton: true } },
+    })
+
+    const fakeEvent = {
+      clipboardData: {
+        items: [{ kind: 'string', type: 'text/plain', getAsFile: () => null }],
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent
+
+    await (wrapper.vm as any).onPaste(fakeEvent)
+    await nextTick()
+
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(fakeEvent.preventDefault).not.toHaveBeenCalled()
+  })
 })

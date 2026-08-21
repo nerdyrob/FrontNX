@@ -206,7 +206,8 @@ const thinkingContent = computed(() => {
 const displayContent = computed(() => {
   if (props.message.role !== 'assistant') return props.message.content
   return props.message.content
-    .replace(/<thinking>\s*[\s\S]*?\s*<\/thinking>\s*/i, '')
+    .replace(/<thinking>\s*[\s\S]*?\s*<\/thinking>\s*/gi, '')   // remove full thinking blocks
+    .replace(/<\/?thinking>\s*/gi, '')                           // strip any stray tags
     .trim()
 })
 

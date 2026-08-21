@@ -56,4 +56,17 @@ describe('ChatMessage', () => {
     })
     expect(wrapper.text()).toContain('Thinking')
   })
+
+  it('strips stray </thinking> tags from the displayed content', () => {
+    const content = '<thinking>\nLet me think…\n</thinking>\n\nThe bird is a Common Loon.\n</thinking>'
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: makeMsg({ role: 'assistant', content }),
+        index: 0,
+      },
+      global: { stubs: { MarkdownRenderer: true, UIcon: true, UButton: true } },
+    })
+    // The stray </thinking> should not leak into the rendered text.
+    expect(wrapper.text()).not.toContain('</thinking>')
+  })
 })

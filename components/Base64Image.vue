@@ -48,7 +48,8 @@ const props = defineProps<{
   alt?: string
 }>()
 
-const MAX_SIZE = 500 * 1024
+const config = useRuntimeConfig()
+const MAX_SIZE = Number(config.public.maxImageDisplayBytes) || 10 * 1024 * 1024
 
 const imageState = computed(() => {
   const mimeMatch = props.src.match(/^data:image\/(\w+);base64,(.+)$/)
