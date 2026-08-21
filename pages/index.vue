@@ -92,6 +92,7 @@
         @select="loadSession"
         @new="newSession"
         @delete="deleteSession"
+        @deleteBatch="deleteSessions"
         @toggle="sidebarOpen = !sidebarOpen"
         @search="onSearch"
         @rename="renameSession"
@@ -302,6 +303,22 @@ async function deleteSession(id: string) {
   if (currentSessionId.value === id) {
     chat.newSession()
     currentSessionId.value = null
+  }
+  await loadSessions()
+}
+
+async function deleteSessions(ids: string[]) {
+  for (const id of ids) {
+    const session = sessions.value.find((s) => s.id === id)
+    if (!session) continue
+    await $fetch('/api/session/delete', {
+      method: 'DELETE',
+      body: { path: session.path },
+    })
+    if (currentSessionId.value === id) {
+      chat.newSession()
+      currentSessionId.value = null
+    }
   }
   await loadSessions()
 }

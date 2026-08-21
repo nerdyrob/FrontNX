@@ -1,4 +1,4 @@
-import type { ChatMessage, ModelOption, ModelParams } from '~/types'
+import type { ChatMessage, ModelOption, ModelParams, SessionMeta } from '~/types'
 import { uid } from '~/utils/uid'
 import { LmStudioService } from '~/services/lm-studio.service'
 import { SessionService } from '~/services/session.service'
@@ -16,15 +16,35 @@ function estimateTokens(text: string): number {
 const _lmStudio = new LmStudioService('/api/lm')
 const _sessionService = new SessionService()
 
+// Per-session in-memory message buffer. Each session keeps its own reactive
+// array so a stream that is still running in the background can keep writing
+// to its originating session's buffer even after the user has switched to a
+// different session. `null` is the key for an as-yet-unsaved ("new") session.
+interface SessionBuffer {
+  messages: Ref<ChatMessage[]>
+  meta: {
+    model?: string
+    created?: string | null
+    title?: string | null
+    temperature?: number | null
+    maxTokens?: number | null
+    topP?: number | null
+    systemPrompt?: string
+  }
+}
+
 export function useChatState() {
   const config = useRuntimeConfig()
   const persistence = useSessionPersistence()
 
-  const messages = ref<ChatMessage[]>([])
+  // Keyed buffers. `activeKey` is the session currently shown in the UI.
+  const buffers = new Map<string | null, SessionBuffer>()
+  const activeKey = ref<string | null>(null)
+  // Path of the session whose stream is currently in flight (or null).
+  const streamingKey = ref<string | null>(null)
+
   const selectedModel = ref<string>('')
   const availableModels = ref<ModelOption[]>([])
-  const isStreaming = ref(false)
-  const currentSessionPath = ref<string | null>(null)
   const loadError = ref<string | null>(null)
   const sessionRefreshTick = ref(0)
   const thinkingEnabled = ref(true)
@@ -37,6 +57,27 @@ export function useChatState() {
   const maxTokens = ref<number | null>(null)
   const topP = ref<number | null>(null)
   const systemPromptOverride = ref<string>('')
+
+  const currentSessionPath = ref<string | null>(null)
+
+  function ensureBuffer(key: string | null): SessionBuffer {
+    let entry = buffers.get(key)
+    if (!entry) {
+      entry = { messages: ref<ChatMessage[]>([]), meta: {} }
+      buffers.set(key, entry)
+    }
+    return entry
+  }
+
+  // The messages shown in the UI: the active session's buffer.
+  const messages = computed<ChatMessage[]>(() => {
+    const entry = buffers.get(activeKey.value)
+    return entry ? entry.messages.value : []
+  })
+
+  // Streaming indicator for the *currently displayed* session. A background
+  // stream on another session must not make the visible session look busy.
+  const isStreaming = computed(() => streamingKey.value !== null && streamingKey.value === activeKey.value)
 
   const thinkingSupported = computed(() => !!selectedModel.value)
 
@@ -70,6 +111,28 @@ export function useChatState() {
     systemPromptOverride.value = value
   }
 
+  function snapshotMeta() {
+    return {
+      model: selectedModel.value,
+      created: sessionCreatedAt.value,
+      title: sessionTitle.value,
+      temperature: temperature.value,
+      maxTokens: maxTokens.value,
+      topP: topP.value,
+      systemPrompt: systemPromptOverride.value,
+    }
+  }
+
+  function applyMeta(m: SessionBuffer['meta']) {
+    if (m.model) selectedModel.value = m.model
+    sessionCreatedAt.value = m.created ?? null
+    sessionTitle.value = m.title ?? null
+    temperature.value = m.temperature ?? null
+    maxTokens.value = m.maxTokens ?? null
+    topP.value = m.topP ?? null
+    systemPromptOverride.value = m.systemPrompt ?? ''
+  }
+
   async function exportToPDF() {
     if (!currentSessionPath.value) return
 
@@ -89,7 +152,28 @@ export function useChatState() {
     setTimeout(() => window.print(), 50)
   }
 
-  function exportSession(format: ExportFormat) {
+  function buildMeta(): SessionMeta {
+    // Preserve the original creation timestamp across saves (code-review #4).
+    const created = sessionCreatedAt.value ?? new Date().toISOString()
+    sessionCreatedAt.value = created
+
+    const params: ModelParams = {}
+    if (temperature.value !== null && !Number.isNaN(temperature.value)) params.temperature = temperature.value
+    if (maxTokens.value !== null && !Number.isNaN(maxTokens.value)) params.maxTokens = maxTokens.value
+    if (topP.value !== null && !Number.isNaN(topP.value)) params.topP = topP.value
+    const systemPrompt = systemPromptOverride.value.trim()
+    if (systemPrompt) params.systemPrompt = systemPrompt
+
+    return {
+      model: selectedModel.value,
+      service: config.public.llmServerName,
+      created,
+      ...(sessionTitle.value ? { title: sessionTitle.value } : {}),
+      ...(Object.keys(params).length > 0 ? { params } : {}),
+    }
+  }
+
+  async function exportSession(format: ExportFormat) {
     const baseName = currentSessionPath.value
       ? (currentSessionPath.value.replace(/\\/g, '/').split('/').pop()?.replace(/\.md$/, '') || 'chat-session')
       : `chat-session-${new Date().toISOString().replace(/[:.]/g, '-')}`
@@ -138,11 +222,28 @@ export function useChatState() {
 
   function stopStreaming() {
     stoppedManually = true
-    activeController?.abort()
+    if (activeController) {
+      activeController.abort()
+      activeController = null
+    }
+  }
+
+  // Persist a single session's buffer to its path.
+  async function saveBufferToPath(key: string) {
+    const entry = ensureBuffer(key)
+    const meta = buildMeta()
+    const content = _sessionService.buildMarkdown(entry.messages.value, meta)
+    await persistence.write(key, content)
+    sessionRefreshTick.value++
+    // Keep the cached meta in sync so switching back restores these values.
+    entry.meta = snapshotMeta()
   }
 
   async function sendMessage(text: string, images?: string[]) {
     if (!selectedModel.value) return
+    // Only one stream may run at a time; don't enqueue an orphaned user turn
+    // behind a background stream on another session.
+    if (streamingKey.value !== null) return
 
     // Embed attached images as markdown image links so they render in the chat
     // and persist in the session file (new-features #5).
@@ -160,7 +261,7 @@ export function useChatState() {
       model: selectedModel.value,
       createdAt: new Date().toISOString(),
     }
-    messages.value.push(userMsg)
+    ensureBuffer(activeKey.value).messages.value.push(userMsg)
 
     try {
       await saveSession()
@@ -176,13 +277,20 @@ export function useChatState() {
   // `regenerate` (new-features #1) so the streaming pipeline lives in one place.
   async function streamAssistantReply() {
     if (!selectedModel.value) return
-    if (messages.value.length === 0) return
-    // The message immediately preceding the reply must be a user turn.
-    if (messages.value[messages.value.length - 1].role !== 'user') return
-    // Guard against overlapping streams (e.g. double-triggering regenerate).
-    if (isStreaming.value) return
+    const key = currentSessionPath.value
+    if (!key) return
+    // Only one stream may run at a time (it is bound to a specific session).
+    if (streamingKey.value !== null) return
 
-    isStreaming.value = true
+    const entry = ensureBuffer(key)
+    const msgs = entry.messages
+    if (msgs.value.length === 0) return
+    // The message immediately preceding the reply must be a user turn.
+    if (msgs.value[msgs.value.length - 1].role !== 'user') return
+    // Guard against overlapping streams (e.g. double-triggering regenerate).
+    if (streamingKey.value !== null) return
+
+    streamingKey.value = key
 
     const assistantId = uid()
     const now = new Date().toISOString()
@@ -192,12 +300,13 @@ export function useChatState() {
       content: '',
       createdAt: now,
     }
-    messages.value.push(assistantMsg)
+    msgs.value.push(assistantMsg)
     const startedAt = Date.now()
 
     function findAssistant(): ChatMessage | undefined {
-      return messages.value.find((m) => m.id === assistantId)
+      return msgs.value.find((m) => m.id === assistantId)
     }
+
     const timeoutMs = Number(config.public.chatRequestTimeoutMs ?? 0)
     const requestController = new AbortController()
     activeController = requestController
@@ -237,7 +346,7 @@ export function useChatState() {
 
     try {
       const response = await _lmStudio.sendChat(
-        messages.value.slice(0, -1),
+        msgs.value.slice(0, -1),
         selectedModel.value,
         (delta) => {
           accContent += delta
@@ -254,7 +363,7 @@ export function useChatState() {
           temperature: temperature.value ?? undefined,
           maxTokens: maxTokens.value ?? undefined,
           topP: topP.value ?? undefined,
-          includeImages: messages.value.slice(0, -1).some((m: ChatMessage) => /data:image\/[a-zA-Z0-9/+]+;base64,/.test(m.content)),
+          includeImages: msgs.value.slice(0, -1).some((m: ChatMessage) => /data:image\/[a-zA-Z0-9/+]+;base64,/.test(m.content)),
         },
       )
 
@@ -291,7 +400,7 @@ export function useChatState() {
         last.stopReason = response.stopReason
       }
 
-      await saveSession()
+      await saveBufferToPath(key)
     } catch (err: unknown) {
       flushScheduled = false
       accContent = ''
@@ -317,19 +426,17 @@ export function useChatState() {
         last.stopReason = isManualStop ? 'userStopped' : (isTimeout ? 'timeout' : undefined)
       }
 
-      // Only persist if a session already exists (avoid creating orphaned error-only files)
-      if (currentSessionPath.value) {
-        try {
-          await saveSession()
-        } catch (saveErr) {
-          console.error('Failed to save errored session:', saveErr)
-        }
+      // Persist the errored/stopped reply so it survives a session switch.
+      try {
+        await saveBufferToPath(key)
+      } catch (saveErr) {
+        console.error('Failed to save errored session:', saveErr)
       }
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle)
       activeController = null
       stoppedManually = false
-      isStreaming.value = false
+      streamingKey.value = null
     }
   }
 
@@ -337,6 +444,7 @@ export function useChatState() {
   // followed it, and regenerates the assistant reply from that point
   // (new-features #1).
   async function editMessage(index: number, newText: string) {
+    if (streamingKey.value !== null) return
     if (index < 0 || index >= messages.value.length) return
     const target = messages.value[index]
     if (target.role !== 'user') return
@@ -349,7 +457,7 @@ export function useChatState() {
 
     if (currentSessionPath.value) {
       try {
-        await rewriteSessionFile()
+        await saveBufferToPath(currentSessionPath.value)
       } catch (err) {
         console.error('Failed to persist edited message:', err)
       }
@@ -361,6 +469,7 @@ export function useChatState() {
   // Regenerates the assistant reply at `index` by removing it (and any later
   // messages) and re-running the streaming pipeline for the preceding user turn.
   async function regenerate(index: number) {
+    if (streamingKey.value !== null) return
     if (!selectedModel.value) return
     if (index <= 0 || index >= messages.value.length) return
     const previous = messages.value[index - 1]
@@ -372,7 +481,7 @@ export function useChatState() {
 
     if (currentSessionPath.value) {
       try {
-        await rewriteSessionFile()
+        await saveBufferToPath(currentSessionPath.value)
       } catch (err) {
         console.error('Failed to persist before regenerate:', err)
       }
@@ -382,25 +491,51 @@ export function useChatState() {
   }
 
   async function loadSession(path: string) {
-    try {
-      const res = await persistence.read(path)
-      const { meta, messages: loaded } = _sessionService.parseMarkdown(res.content)
-      messages.value = loaded
-      currentSessionPath.value = path
-      if (meta.model) selectedModel.value = meta.model
-      if (meta.created) sessionCreatedAt.value = meta.created
-      sessionTitle.value = meta.title ?? null
-      temperature.value = meta.params?.temperature ?? null
-      maxTokens.value = meta.params?.maxTokens ?? null
-      topP.value = meta.params?.topP ?? null
-      systemPromptOverride.value = meta.params?.systemPrompt ?? ''
-    } catch (err) {
-      console.error('Failed to load session:', err)
+    let entry = buffers.get(path)
+
+    // If the session is already in memory, reuse it so an in-flight (or
+    // previously interrupted) stream keeps its live content instead of being
+    // clobbered by a stale on-disk copy.
+    if (!entry) {
+      try {
+        const res = await persistence.read(path)
+        const { meta, messages: loaded } = _sessionService.parseMarkdown(res.content)
+        entry = ensureBuffer(path)
+        entry.messages.value = loaded
+        entry.meta = {
+          model: meta.model,
+          created: meta.created,
+          title: meta.title ?? null,
+          temperature: meta.params?.temperature ?? null,
+          maxTokens: meta.params?.maxTokens ?? null,
+          topP: meta.params?.topP ?? null,
+          systemPrompt: meta.params?.systemPrompt ?? '',
+        }
+      } catch (err) {
+        console.error('Failed to load session:', err)
+        return
+      }
     }
+
+    activeKey.value = path
+    currentSessionPath.value = path
+    applyMeta(entry.meta)
+  }
+
+  function resetStreamingState() {
+    if (activeController) {
+      activeController.abort()
+      activeController = null
+    }
+    stoppedManually = false
+    streamingKey.value = null
   }
 
   async function newSession() {
-    messages.value = []
+    const entry = ensureBuffer(null)
+    entry.messages.value = []
+    entry.meta = {}
+    activeKey.value = null
     currentSessionPath.value = null
     sessionCreatedAt.value = null
     sessionTitle.value = null
@@ -411,55 +546,41 @@ export function useChatState() {
   }
 
   function deleteMessage(index: number) {
-    messages.value.splice(index, 1)
+    const entry = buffers.get(activeKey.value)
+    if (!entry) return
+    entry.messages.value.splice(index, 1)
     if (currentSessionPath.value) {
-      rewriteSessionFile()
-    }
-  }
-
-  function buildMeta(): SessionMeta {
-    // Preserve the original creation timestamp across saves (code-review #4).
-    const created = sessionCreatedAt.value ?? new Date().toISOString()
-    sessionCreatedAt.value = created
-
-    const params: ModelParams = {}
-    if (temperature.value !== null && !Number.isNaN(temperature.value)) params.temperature = temperature.value
-    if (maxTokens.value !== null && !Number.isNaN(maxTokens.value)) params.maxTokens = maxTokens.value
-    if (topP.value !== null && !Number.isNaN(topP.value)) params.topP = topP.value
-    const systemPrompt = systemPromptOverride.value.trim()
-    if (systemPrompt) params.systemPrompt = systemPrompt
-
-    return {
-      model: selectedModel.value,
-      service: config.public.llmServerName,
-      created,
-      ...(sessionTitle.value ? { title: sessionTitle.value } : {}),
-      ...(Object.keys(params).length > 0 ? { params } : {}),
+      saveBufferToPath(currentSessionPath.value)
     }
   }
 
   async function saveSession() {
+    const key = activeKey.value
+    const entry = ensureBuffer(key)
     const meta = buildMeta()
-    const content = _sessionService.buildMarkdown(messages.value, meta)
+    const content = _sessionService.buildMarkdown(entry.messages.value, meta)
 
-    const path = currentSessionPath.value
-    if (path) {
-      await persistence.write(path, content)
+    if (currentSessionPath.value) {
+      await persistence.write(currentSessionPath.value, content)
+      sessionRefreshTick.value++
+      entry.meta = snapshotMeta()
     } else {
       const res = await persistence.create(meta)
       // Only store the path after the content rewrite succeeds
-      await persistence.write(res.path, content)
-      currentSessionPath.value = res.path
+      const newKey = res.path
+      buffers.set(newKey, entry)
+      if (key !== null) buffers.delete(key)
+      entry.meta = snapshotMeta()
+      activeKey.value = newKey
+      currentSessionPath.value = newKey
+      await persistence.write(newKey, content)
+      sessionRefreshTick.value++
     }
-    sessionRefreshTick.value++
   }
 
   async function rewriteSessionFile() {
     if (!currentSessionPath.value) return
-    const meta = buildMeta()
-    const content = _sessionService.buildMarkdown(messages.value, meta)
-    await persistence.write(currentSessionPath.value, content)
-    sessionRefreshTick.value++
+    await saveBufferToPath(currentSessionPath.value)
   }
 
   return {
@@ -494,5 +615,6 @@ export function useChatState() {
     stopStreaming,
     editMessage,
     regenerate,
+    resetStreamingState,
   }
 }
