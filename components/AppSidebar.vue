@@ -6,30 +6,67 @@
     ]"
   >
     <template v-if="open">
+      <!-- Header -->
       <div class="flex items-center justify-between pl-6 pr-3 h-[57px] shrink-0">
-        <span class="text-sm font-semibold text-dimmed">Sessions</span>
+        <span class="text-sm font-semibold text-dimmed">
+          {{ deleteMode ? `${selectedIds.size} selected` : 'Sessions' }}
+        </span>
         <div class="flex items-center gap-3">
-          <UButton
-            icon="i-lucide-message-square-plus"
-            size="2xs"
-            color="neutral"
-            variant="ghost"
-            class="text-dimmed"
-            title="New session"
-            @click.stop="$emit('new')"
-          />
-          <UButton
-            icon="i-lucide-panel-left-close"
-            size="2xs"
-            color="neutral"
-            variant="ghost"
-            class="text-dimmed"
-            title="Collapse sidebar"
-            @click="$emit('toggle')"
-          />
+          <template v-if="deleteMode">
+            <UButton
+              icon="i-lucide-trash-2"
+              size="2xs"
+              color="error"
+              variant="ghost"
+              class="text-error"
+              title="Delete selected"
+              :disabled="selectedIds.size === 0"
+              @click="confirmDeleteSelected"
+            />
+            <UButton
+              icon="i-lucide-x"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="text-dimmed"
+              title="Cancel"
+              @click="exitDeleteMode"
+            />
+          </template>
+          <template v-else>
+            <UButton
+              icon="i-lucide-message-square-plus"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="text-dimmed"
+              title="New session"
+              @click.stop="$emit('new')"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="text-dimmed"
+              title="Delete sessions"
+              @click="enterDeleteMode"
+            />
+            <UButton
+              icon="i-lucide-panel-left-close"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="text-dimmed"
+              title="Collapse sidebar"
+              @click="$emit('toggle')"
+            />
+          </template>
         </div>
       </div>
-      <div class="px-3 pb-2 shrink-0">
+
+      <!-- Search -->
+      <div v-if="!deleteMode" class="px-3 pb-2 shrink-0">
         <input
           :value="searchQuery"
           type="search"
@@ -38,18 +75,26 @@
           @input="$emit('search', ($event.target as HTMLInputElement).value)"
         >
       </div>
+
+      <!-- Session list -->
       <div class="flex-1 overflow-y-auto px-2 pb-2 mt-2 space-y-0.5">
         <div
           v-for="session in sessions"
           :key="session.id"
           :class="[
-            'group relative w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer',
-            session.id === currentSessionId
+            'group relative w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-sm transition-all',
+            deleteMode ? 'cursor-pointer select-none' : 'cursor-pointer',
+            !deleteMode && session.id === currentSessionId
               ? 'bg-accented text-highlighted shadow-sm'
-              : 'text-muted hover:bg-muted hover:text-highlighted',
+              : selectedIds.has(session.id)
+                ? 'bg-error/10 text-error'
+                : !deleteMode
+                  ? 'text-muted hover:bg-muted hover:text-highlighted'
+                  : 'text-muted hover:bg-muted hover:text-highlighted',
           ]"
-          @click="$emit('select', session.id)"
+          @click="onSessionClick(session)"
         >
+          <!-- Rename mode -->
           <div v-if="renamingId === session.id" class="flex items-center gap-1" @click.stop>
             <input
               ref="renameInputRef"
@@ -61,9 +106,27 @@
               @blur="submitRename(session)"
             >
           </div>
+
+          <!-- Normal view -->
           <div v-else class="flex items-center gap-1.5">
+            <!-- Delete-mode checkbox -->
+            <div
+              v-if="deleteMode"
+              class="w-4 h-4 rounded border border-default flex items-center justify-center shrink-0"
+              :class="selectedIds.has(session.id) ? 'bg-error border-error' : 'bg-elevated'"
+            >
+              <UIcon
+                v-if="selectedIds.has(session.id)"
+                name="i-lucide-check"
+                class="w-3 h-3 text-white"
+              />
+            </div>
+
             <div class="truncate font-medium leading-tight flex-1 min-w-0">{{ session.title || session.preview || session.id }}</div>
+
+            <!-- Rename button (only in normal mode) -->
             <UButton
+              v-if="!deleteMode"
               icon="i-lucide-pencil"
               size="2xs"
               color="neutral"
@@ -73,7 +136,9 @@
               @click.stop="startRename(session)"
             />
           </div>
-          <div class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
+
+          <!-- Metadata row -->
+          <div v-if="!deleteMode" class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
             <div class="truncate">{{ formatTimestamp(session.timestamp) }}</div>
             <div class="ml-auto whitespace-nowrap text-right">{{ formatTotals(session.totalProcessingTimeMs, session.totalTokens) }}</div>
             <UButton
@@ -86,11 +151,14 @@
             />
           </div>
         </div>
+
         <div v-if="sessions.length === 0" class="px-3 py-8 text-center">
           <p class="text-xs text-muted">No sessions yet</p>
         </div>
       </div>
     </template>
+
+    <!-- Collapsed state -->
     <template v-else>
       <div class="flex flex-col items-center pt-2">
         <UButton
@@ -121,6 +189,47 @@ const renamingId = ref<string | null>(null)
 const renameText = ref('')
 const renameInputRef = ref<HTMLInputElement | null>(null)
 
+// --- Delete mode state ---
+const deleteMode = ref(false)
+const selectedIds = ref(new Set<string>())
+
+function enterDeleteMode() {
+  deleteMode.value = true
+  selectedIds.value = new Set()
+}
+
+function exitDeleteMode() {
+  deleteMode.value = false
+  selectedIds.value = new Set()
+}
+
+function onSessionClick(session: SessionListItem) {
+  if (deleteMode.value) {
+    toggleSelect(session.id)
+  } else {
+    emit('select', session.id)
+  }
+}
+
+function toggleSelect(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  selectedIds.value = next
+}
+
+function confirmDeleteSelected() {
+  if (selectedIds.value.size === 0) return
+  const count = selectedIds.value.size
+  if (!window.confirm(`Delete ${count} session${count > 1 ? 's' : ''}? This cannot be undone.`)) return
+  emit('deleteBatch', [...selectedIds.value])
+  exitDeleteMode()
+}
+
+// --- Rename ---
 function startRename(session: SessionListItem) {
   renamingId.value = session.id
   renameText.value = session.title || session.preview || session.id
@@ -142,6 +251,7 @@ function cancelRename() {
   renameText.value = ''
 }
 
+// --- Formatting ---
 function formatTotals(totalProcessingTimeMs: number, totalTokens: number): string {
   const seconds = totalProcessingTimeMs / 1000
   if (seconds >= 60) return `${totalTokens} tokens, ${(seconds / 60).toFixed(1)}m`
@@ -159,6 +269,7 @@ function formatTimestamp(value: string): string {
 const emit = defineEmits<{
   select: [id: string]
   delete: [id: string]
+  deleteBatch: [ids: string[]]
   new: []
   toggle: []
   search: [query: string]
