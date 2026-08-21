@@ -1,6 +1,7 @@
 // @vitest-environment nuxt
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import IndexPage from '~/pages/index.vue'
 
 vi.mock('~/services/lm-studio.service', () => ({
@@ -94,5 +95,35 @@ describe('IndexPage', () => {
     await new Promise((r) => setTimeout(r, 50))
     const input = wrapper.findComponent({ name: 'ChatInput' })
     expect(input.exists()).toBe(true)
+  })
+
+  it('opens the model-parameters panel teleported to <body> (not trapped in the header)', async () => {
+    const wrapper = mount(IndexPage, {
+      global: {
+        stubs: {
+          AppSidebar: true,
+          ModelSelector: true,
+          ChatInput: true,
+          ChatMessage: true,
+          UIcon: true,
+          UButton: true,
+        },
+      },
+    })
+    // Allow onMounted loadModels() to populate availableModels so the gear renders.
+    await flushPromises()
+    await new Promise((r) => setTimeout(r, 50))
+
+    const gear = wrapper.find('[title="Model parameters"]')
+    expect(gear.exists()).toBe(true)
+    await gear.trigger('click')
+    await nextTick()
+    await new Promise((r) => setTimeout(r, 20))
+
+    // The panel is rendered in document.body (outside the stacking context of
+    // the blurred header), so chat content can't paint over it.
+    const bodyText = document.body.textContent ?? ''
+    expect(bodyText).toContain('Temperature')
+    expect(bodyText).toContain('Max tokens')
   })
 })

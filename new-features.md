@@ -6,23 +6,30 @@ Ideas to improve FrontNX beyond its current chat + markdown-session scope. Prior
 
 ## High impact
 
-### 1. Message editing & regeneration
+> **Status legend:** ✅ Completed · ⬜ Not started
+
+### 1. Message editing & regeneration — ✅ Completed
 - Allow editing a previously sent user message and **regenerating** the assistant reply from that point (splice messages by index, then re-run the streaming pipeline).
 - Requires a "branch from here" view or simple in-place edit. Reuses `rewriteSessionFile()` and the existing streaming pipeline.
+- **Implemented:** `editMessage(index, text)` and `regenerate(index)` in `useChatState.ts`; inline edit UI + regenerate button in `ChatMessage.vue`. Covered by `useChatState-edit.spec.ts` and `ChatMessage-edit.spec.ts`.
 
-### 2. Conversation rename & search
+### 2. Conversation rename & search — ✅ Completed
 - Sessions currently show a truncated first-message preview as the title. Add a rename action (stored in front-matter `title`).
 - Add full-text search across sessions in the sidebar (`AppSidebar.vue`), backed by a new `repo.search(query)` that reuses the existing `parseMarkdown` + `extractPreview` logic.
+- **Implemented:** `title`/`params` front-matter in `SessionService`; `repo.search()` + `repo.rename()`; `POST /api/session/search` and `POST /api/session/rename`; search box + inline rename in `AppSidebar.vue`. Covered by `session-fs-search.spec.ts` and `AppSidebar-search-rename.spec.ts`.
 
-### 3. Conversation export
+### 3. Conversation export — ✅ Completed
 - **Export** the current session as Markdown, JSON, or plain text (the renderer already produces clean Markdown; only PDF print exists today).
+- **Implemented:** `exportAsMarkdown/Text/Json` in `SessionService`; `exportSession(format)` in `useChatState.ts`; header export dropdown (Markdown/JSON/Text/PDF) in `index.vue`. Covered by `session.service-export.spec.ts` and `useChatState-export.spec.ts`.
 
-### 4. Configurable model parameters
+### 4. Configurable model parameters — ✅ Completed
 - Expose temperature, max tokens, top-p, and system prompt override in the UI.
 - `lm-studio.service.ts:139-144` already builds the request body; add these fields to `sendChat` and surface controls in `ChatInput` / a settings panel. Persist preferences per session in front-matter.
+- **Implemented:** `ChatRequestOptions` (temperature/maxTokens/topP) forwarded in `LmStudioService.sendChat`; per-session `ModelParams` stored in front-matter; settings gear + `ChatSettings.vue`. Covered by `lm-studio-params.spec.ts`, `useChatState-params.spec.ts`, and `ChatSettings.spec.ts`.
 
-### 5. Multimodal / image input
+### 5. Multimodal / image input — ✅ Completed
 - The renderer already supports base64 images (`Base64Image.vue`) and the service sanitizes images out of API payloads (`lm-studio.service.ts:89-91`). Add an image attach button in `ChatInput` that includes images in the user message for vision-capable models.
+- **Implemented:** image attach button + previews in `ChatInput.vue`; images embedded in the message and forwarded as multimodal content (`includeImages` in `sendChat`) for vision-capable models. Covered by `lm-studio-images.spec.ts`, `useChatState-images.spec.ts`, and `ChatInput-image.spec.ts`.
 
 ---
 

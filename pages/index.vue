@@ -8,15 +8,82 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <UButton
-          v-if="chat.currentSessionPath.value && chat.availableModels.value.length > 0"
-          icon="i-lucide-file-text"
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          title="Export to PDF"
-          @click="chat.exportToPDF"
-        />
+        <div v-if="chat.availableModels.value.length > 0">
+          <span ref="settingsButtonRef" class="inline-flex">
+            <UButton
+              icon="i-lucide-settings-2"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              title="Model parameters"
+              @click="toggleSettings"
+            />
+          </span>
+          <Teleport to="body">
+            <div v-if="settingsOpen" class="fixed inset-0 z-[60]" @click="closeSettings" />
+            <div
+              v-if="settingsOpen"
+              class="fixed z-[70] rounded-lg border border-default bg-popover shadow-lg"
+              :style="{ top: `${settingsPos.top}px`, left: `${settingsPos.left}px` }"
+            >
+              <ChatSettings
+                :temperature="chat.temperature.value"
+                :max-tokens="chat.maxTokens.value"
+                :top-p="chat.topP.value"
+                :system-prompt="chat.systemPromptOverride.value"
+                @update:temperature="chat.setTemperature"
+                @update:max-tokens="chat.setMaxTokens"
+                @update:top-p="chat.setTopP"
+                @update:system-prompt="chat.setSystemPromptOverride"
+              />
+            </div>
+          </Teleport>
+        </div>
+        <div v-if="chat.currentSessionPath.value && chat.availableModels.value.length > 0">
+          <span ref="exportButtonRef" class="inline-flex">
+            <UButton
+              icon="i-lucide-download"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              title="Export conversation"
+              @click="toggleExportMenu"
+            />
+          </span>
+          <Teleport to="body">
+            <div v-if="exportMenuOpen" class="fixed inset-0 z-[60]" @click="closeExportMenu" />
+            <div
+              v-if="exportMenuOpen"
+              class="fixed z-[70] w-44 rounded-lg border border-default bg-popover p-1 shadow-lg"
+              :style="{ top: `${exportPos.top}px`, left: `${exportPos.left}px` }"
+            >
+              <button
+                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left hover:bg-muted"
+                @click="exportAs('markdown')"
+              >
+                <UIcon name="i-lucide-file-text" class="w-4 h-4" /> Markdown
+              </button>
+              <button
+                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left hover:bg-muted"
+                @click="exportAs('json')"
+              >
+                <UIcon name="i-lucide-braces" class="w-4 h-4" /> JSON
+              </button>
+              <button
+                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left hover:bg-muted"
+                @click="exportAs('text')"
+              >
+                <UIcon name="i-lucide-file-type" class="w-4 h-4" /> Plain text
+              </button>
+              <button
+                class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm hover:bg-muted"
+                @click="exportAsPdf"
+              >
+                <UIcon name="i-lucide-printer" class="w-4 h-4" /> PDF (print)
+              </button>
+            </div>
+          </Teleport>
+        </div>
         <ModelSelector
           v-if="chat.availableModels.value.length > 0"
           :model-value="chat.selectedModel.value"
@@ -33,10 +100,13 @@
         :sessions="sessions"
         :current-session-id="currentSessionId"
         :open="sidebarOpen"
+        :search-query="searchQuery"
         @select="loadSession"
         @new="newSession"
         @delete="deleteSession"
         @toggle="sidebarOpen = !sidebarOpen"
+        @search="onSearch"
+        @rename="renameSession"
       />
 
       <!-- Main chat area -->
@@ -86,6 +156,8 @@
               :is-last="i === chat.messages.value.length - 1"
               :streaming="chat.isStreaming.value && i === chat.messages.value.length - 1"
               @delete="confirmDeleteMessage(i)"
+              @edit="handleEdit"
+              @regenerate="handleRegenerate"
             />
           </div>
         </main>
@@ -113,12 +185,70 @@ const serverName = config.public.llmServerName
 const chat = useChatState()
 const messagesContainer = ref<HTMLElement | null>(null)
 const sidebarOpen = ref(true)
+const exportMenuOpen = ref(false)
+const settingsOpen = ref(false)
+const settingsButtonRef = ref<HTMLElement | null>(null)
+const exportButtonRef = ref<HTMLElement | null>(null)
+const settingsPos = ref<{ top: number; left: number }>({ top: 0, left: 0 })
+const exportPos = ref<{ top: number; left: number }>({ top: 0, left: 0 })
+
+// Position a popover below its trigger, right-aligned to the button. Computed
+// from the live bounding rect so the menu escapes the header's stacking
+// context (the header uses backdrop-blur, which otherwise traps fixed/absolute
+// descendants and lets chat content paint over the panel).
+function placeBelow(button: HTMLElement | null, width: number) {
+  if (!button) return { top: 0, left: 0 }
+  const rect = button.getBoundingClientRect()
+  return {
+    top: Math.round(rect.bottom + 8),
+    left: Math.max(8, Math.round(rect.right - width)),
+  }
+}
 
 const sessions = ref<SessionListItem[]>([])
 const currentSessionId = ref<string | null>(null)
+const searchQuery = ref('')
 
-function handleSend(text: string) {
-  chat.sendMessage(text)
+function handleSend(payload: { text: string; images: string[] }) {
+  chat.sendMessage(payload.text, payload.images)
+  scrollToBottom()
+}
+
+function exportAs(format: 'markdown' | 'json' | 'text') {
+  chat.exportSession(format)
+  exportMenuOpen.value = false
+}
+
+function exportAsPdf() {
+  chat.exportToPDF()
+  exportMenuOpen.value = false
+}
+
+function toggleExportMenu() {
+  exportMenuOpen.value = !exportMenuOpen.value
+  if (exportMenuOpen.value) exportPos.value = placeBelow(exportButtonRef.value, 176)
+}
+
+function closeExportMenu() {
+  exportMenuOpen.value = false
+}
+
+function toggleSettings() {
+  settingsOpen.value = !settingsOpen.value
+  if (settingsOpen.value) settingsPos.value = placeBelow(settingsButtonRef.value, 288)
+}
+
+function closeSettings() {
+  settingsOpen.value = false
+}
+
+function handleEdit(index: number, newText: string) {
+  chat.editMessage(index, newText)
+  scrollToBottom()
+}
+
+function handleRegenerate(index: number) {
+  chat.regenerate(index)
   scrollToBottom()
 }
 
@@ -147,7 +277,29 @@ function newSession() {
 }
 
 async function loadSessions() {
-  sessions.value = await $fetch('/api/session/list')
+  if (searchQuery.value.trim()) {
+    sessions.value = await $fetch('/api/session/search', { params: { query: searchQuery.value } })
+  } else {
+    sessions.value = await $fetch('/api/session/list')
+  }
+}
+
+function onSearch(query: string) {
+  searchQuery.value = query
+  loadSessions()
+}
+
+async function renameSession(id: string, title: string) {
+  const session = sessions.value.find((s) => s.id === id)
+  if (!session) return
+  await $fetch('/api/session/rename', {
+    method: 'POST',
+    body: { path: session.path, title },
+  })
+  if (id === currentSessionId.value) {
+    chat.setSessionTitle(title)
+  }
+  await loadSessions()
 }
 
 async function deleteSession(id: string) {

@@ -16,8 +16,17 @@ export interface MessageMetrics {
   tokensPerSecond: number
 }
 
+export interface ModelParams {
+  temperature?: number
+  maxTokens?: number
+  topP?: number
+  systemPrompt?: string
+}
+
 export interface SessionMeta {
   model: string
   service: string
   created: string
+  title?: string
+  params?: ModelParams
 }

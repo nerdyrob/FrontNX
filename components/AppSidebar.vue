@@ -29,7 +29,16 @@
           />
         </div>
       </div>
-      <div class="flex-1 overflow-y-auto px-2 pb-2 -mt-2 space-y-0.5">
+      <div class="px-3 pb-2 shrink-0">
+        <input
+          :value="searchQuery"
+          type="search"
+          placeholder="Search conversations…"
+          class="w-full bg-elevated border border-default rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+          @input="$emit('search', ($event.target as HTMLInputElement).value)"
+        >
+      </div>
+      <div class="flex-1 overflow-y-auto px-2 pb-2 mt-2 space-y-0.5">
         <div
           v-for="session in sessions"
           :key="session.id"
@@ -41,7 +50,29 @@
           ]"
           @click="$emit('select', session.id)"
         >
-          <div class="truncate font-medium leading-tight">{{ session.preview || session.title }}</div>
+          <div v-if="renamingId === session.id" class="flex items-center gap-1" @click.stop>
+            <input
+              ref="renameInputRef"
+              v-model="renameText"
+              type="text"
+              class="flex-1 min-w-0 bg-elevated border border-default rounded px-1.5 py-0.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              @keydown.enter.prevent="submitRename(session)"
+              @keydown.esc.prevent="cancelRename"
+              @blur="submitRename(session)"
+            >
+          </div>
+          <div v-else class="flex items-center gap-1.5">
+            <div class="truncate font-medium leading-tight flex-1 min-w-0">{{ session.title || session.preview || session.id }}</div>
+            <UButton
+              icon="i-lucide-pencil"
+              size="2xs"
+              color="neutral"
+              variant="ghost"
+              class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              title="Rename conversation"
+              @click.stop="startRename(session)"
+            />
+          </div>
           <div class="mt-1 flex items-center gap-2 text-[10px] text-dimmed">
             <div class="truncate">{{ formatTimestamp(session.timestamp) }}</div>
             <div class="ml-auto whitespace-nowrap text-right">{{ formatTotals(session.totalProcessingTimeMs, session.totalTokens) }}</div>
@@ -83,7 +114,33 @@ const props = withDefaults(defineProps<{
   sessions: SessionListItem[]
   currentSessionId: string | null
   open?: boolean
-}>(), { open: true })
+  searchQuery?: string
+}>(), { open: true, searchQuery: '' })
+
+const renamingId = ref<string | null>(null)
+const renameText = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
+function startRename(session: SessionListItem) {
+  renamingId.value = session.id
+  renameText.value = session.title || session.preview || session.id
+  nextTick(() => renameInputRef.value?.focus?.())
+}
+
+function submitRename(session: SessionListItem) {
+  if (renamingId.value !== session.id) return
+  const title = renameText.value.trim()
+  renamingId.value = null
+  renameText.value = ''
+  if (title && title !== (session.title || session.preview || session.id)) {
+    emit('rename', session.id, title)
+  }
+}
+
+function cancelRename() {
+  renamingId.value = null
+  renameText.value = ''
+}
 
 function formatTotals(totalProcessingTimeMs: number, totalTokens: number): string {
   const seconds = totalProcessingTimeMs / 1000
@@ -99,10 +156,12 @@ function formatTimestamp(value: string): string {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
 
-defineEmits<{
+const emit = defineEmits<{
   select: [id: string]
   delete: [id: string]
   new: []
   toggle: []
+  search: [query: string]
+  rename: [id: string, title: string]
 }>()
 </script>

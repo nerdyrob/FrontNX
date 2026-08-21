@@ -1,7 +1,10 @@
-import type { ChatMessage, ModelOption } from '~/types'
+import type { ChatMessage, ModelOption, ModelParams } from '~/types'
 import { uid } from '~/utils/uid'
 import { LmStudioService } from '~/services/lm-studio.service'
 import { SessionService } from '~/services/session.service'
+import { downloadTextFile } from '~/utils/download'
+
+export type ExportFormat = 'markdown' | 'json' | 'text'
 
 function estimateTokens(text: string): number {
   const trimmed = text.trim()
@@ -28,6 +31,12 @@ export function useChatState() {
   // Captured once when a session is first created so subsequent saves
   // don't rewrite the original creation timestamp (see #4 in code-review.md).
   const sessionCreatedAt = ref<string | null>(null)
+  // Session-level model parameters (new-features #4), persisted in front-matter.
+  const sessionTitle = ref<string | null>(null)
+  const temperature = ref<number | null>(null)
+  const maxTokens = ref<number | null>(null)
+  const topP = ref<number | null>(null)
+  const systemPromptOverride = ref<string>('')
 
   const thinkingSupported = computed(() => !!selectedModel.value)
 
@@ -39,6 +48,26 @@ export function useChatState() {
 
   function setThinkingEnabled(value: boolean) {
     thinkingEnabled.value = value
+  }
+
+  function setSessionTitle(value: string) {
+    sessionTitle.value = value
+  }
+
+  function setTemperature(value: number | null) {
+    temperature.value = value
+  }
+
+  function setMaxTokens(value: number | null) {
+    maxTokens.value = value
+  }
+
+  function setTopP(value: number | null) {
+    topP.value = value
+  }
+
+  function setSystemPromptOverride(value: string) {
+    systemPromptOverride.value = value
   }
 
   async function exportToPDF() {
@@ -58,6 +87,32 @@ export function useChatState() {
     setTimeout(restore, 1000)
     window.addEventListener('afterprint', restore, { once: true })
     setTimeout(() => window.print(), 50)
+  }
+
+  function exportSession(format: ExportFormat) {
+    const baseName = currentSessionPath.value
+      ? (currentSessionPath.value.replace(/\\/g, '/').split('/').pop()?.replace(/\.md$/, '') || 'chat-session')
+      : `chat-session-${new Date().toISOString().replace(/[:.]/g, '-')}`
+    const meta = buildMeta()
+
+    let content: string
+    let mime: string
+    let ext: string
+    if (format === 'json') {
+      content = _sessionService.exportAsJson(messages.value, meta)
+      mime = 'application/json'
+      ext = 'json'
+    } else if (format === 'text') {
+      content = _sessionService.exportAsText(messages.value)
+      mime = 'text/plain'
+      ext = 'txt'
+    } else {
+      content = _sessionService.exportAsMarkdown(messages.value, meta)
+      mime = 'text/markdown'
+      ext = 'md'
+    }
+
+    downloadTextFile(content, `${baseName}.${ext}`, mime)
   }
 
   async function loadModels() {
@@ -86,13 +141,22 @@ export function useChatState() {
     activeController?.abort()
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, images?: string[]) {
     if (!selectedModel.value) return
+
+    // Embed attached images as markdown image links so they render in the chat
+    // and persist in the session file (new-features #5).
+    let content = text
+    const safeImages = (images ?? []).filter((src) => /^data:image\/[a-zA-Z0-9/+]+;base64,/.test(src))
+    if (safeImages.length > 0) {
+      const imageMarkdown = safeImages.map(src => `\n![image](${src})`).join('')
+      content = text ? `${text}${imageMarkdown}` : imageMarkdown.trim()
+    }
 
     const userMsg: ChatMessage = {
       id: uid(),
       role: 'user',
-      content: text,
+      content,
       model: selectedModel.value,
       createdAt: new Date().toISOString(),
     }
@@ -103,6 +167,20 @@ export function useChatState() {
     } catch (err) {
       console.error('Failed to persist user prompt:', err)
     }
+
+    await streamAssistantReply()
+  }
+
+  // Generates a fresh assistant reply for the user message currently at the
+  // end of the conversation. Shared by `sendMessage`, `editMessage`, and
+  // `regenerate` (new-features #1) so the streaming pipeline lives in one place.
+  async function streamAssistantReply() {
+    if (!selectedModel.value) return
+    if (messages.value.length === 0) return
+    // The message immediately preceding the reply must be a user turn.
+    if (messages.value[messages.value.length - 1].role !== 'user') return
+    // Guard against overlapping streams (e.g. double-triggering regenerate).
+    if (isStreaming.value) return
 
     isStreaming.value = true
 
@@ -171,7 +249,13 @@ export function useChatState() {
           accReasoning += reasoningDelta
           scheduleFlush()
         },
-        config.public.llmSystemPrompt as string | undefined,
+        systemPromptOverride.value.trim() || (config.public.llmSystemPrompt as string | undefined),
+        {
+          temperature: temperature.value ?? undefined,
+          maxTokens: maxTokens.value ?? undefined,
+          topP: topP.value ?? undefined,
+          includeImages: messages.value.slice(0, -1).some((m: ChatMessage) => /data:image\/[a-zA-Z0-9/+]+;base64,/.test(m.content)),
+        },
       )
 
       // Flush any remaining accumulated content
@@ -245,6 +329,54 @@ export function useChatState() {
     }
   }
 
+  // Edits a previously sent user message in place, drops every message that
+  // followed it, and regenerates the assistant reply from that point
+  // (new-features #1).
+  async function editMessage(index: number, newText: string) {
+    if (index < 0 || index >= messages.value.length) return
+    const target = messages.value[index]
+    if (target.role !== 'user') return
+    const trimmed = newText.trim()
+    if (!trimmed) return
+
+    target.content = trimmed
+    // Splice away everything after the edited turn, then re-run the pipeline.
+    messages.value.splice(index + 1)
+
+    if (currentSessionPath.value) {
+      try {
+        await rewriteSessionFile()
+      } catch (err) {
+        console.error('Failed to persist edited message:', err)
+      }
+    }
+
+    await streamAssistantReply()
+  }
+
+  // Regenerates the assistant reply at `index` by removing it (and any later
+  // messages) and re-running the streaming pipeline for the preceding user turn.
+  async function regenerate(index: number) {
+    if (!selectedModel.value) return
+    if (index <= 0 || index >= messages.value.length) return
+    const previous = messages.value[index - 1]
+    if (previous.role !== 'user') return
+
+    // Drop the assistant message (and anything after it) so a fresh reply
+    // can be generated for the user turn at `index - 1`.
+    messages.value.splice(index)
+
+    if (currentSessionPath.value) {
+      try {
+        await rewriteSessionFile()
+      } catch (err) {
+        console.error('Failed to persist before regenerate:', err)
+      }
+    }
+
+    await streamAssistantReply()
+  }
+
   async function loadSession(path: string) {
     try {
       const res = await persistence.read(path)
@@ -253,6 +385,11 @@ export function useChatState() {
       currentSessionPath.value = path
       if (meta.model) selectedModel.value = meta.model
       if (meta.created) sessionCreatedAt.value = meta.created
+      sessionTitle.value = meta.title ?? null
+      temperature.value = meta.params?.temperature ?? null
+      maxTokens.value = meta.params?.maxTokens ?? null
+      topP.value = meta.params?.topP ?? null
+      systemPromptOverride.value = meta.params?.systemPrompt ?? ''
     } catch (err) {
       console.error('Failed to load session:', err)
     }
@@ -262,6 +399,11 @@ export function useChatState() {
     messages.value = []
     currentSessionPath.value = null
     sessionCreatedAt.value = null
+    sessionTitle.value = null
+    temperature.value = null
+    maxTokens.value = null
+    topP.value = null
+    systemPromptOverride.value = ''
   }
 
   function deleteMessage(index: number) {
@@ -275,10 +417,20 @@ export function useChatState() {
     // Preserve the original creation timestamp across saves (code-review #4).
     const created = sessionCreatedAt.value ?? new Date().toISOString()
     sessionCreatedAt.value = created
+
+    const params: ModelParams = {}
+    if (temperature.value !== null && !Number.isNaN(temperature.value)) params.temperature = temperature.value
+    if (maxTokens.value !== null && !Number.isNaN(maxTokens.value)) params.maxTokens = maxTokens.value
+    if (topP.value !== null && !Number.isNaN(topP.value)) params.topP = topP.value
+    const systemPrompt = systemPromptOverride.value.trim()
+    if (systemPrompt) params.systemPrompt = systemPrompt
+
     return {
       model: selectedModel.value,
       service: config.public.llmServerName,
       created,
+      ...(sessionTitle.value ? { title: sessionTitle.value } : {}),
+      ...(Object.keys(params).length > 0 ? { params } : {}),
     }
   }
 
@@ -315,6 +467,11 @@ export function useChatState() {
     loadError: readonly(loadError),
     sessionRefreshTick: readonly(sessionRefreshTick),
     thinkingEnabled: readonly(thinkingEnabled),
+    sessionTitle: readonly(sessionTitle),
+    temperature: readonly(temperature),
+    maxTokens: readonly(maxTokens),
+    topP: readonly(topP),
+    systemPromptOverride: readonly(systemPromptOverride),
     thinkingSupported,
     loadModels,
     sendMessage,
@@ -322,8 +479,16 @@ export function useChatState() {
     newSession,
     deleteMessage,
     exportToPDF,
+    exportSession,
     setSelectedModel,
     setThinkingEnabled,
+    setSessionTitle,
+    setTemperature,
+    setMaxTokens,
+    setTopP,
+    setSystemPromptOverride,
     stopStreaming,
+    editMessage,
+    regenerate,
   }
 }

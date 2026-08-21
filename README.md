@@ -227,6 +227,11 @@ Chats are saved as markdown files in a user cache directory:
 model: llama-3.2-3b-instruct
 service: LM Studio
 created: 2026-07-13T17:30:00Z
+title: My Chat
+temperature: 0.7
+max_tokens: 1024
+top_p: 0.9
+system_prompt: Be concise and friendly.
 ---
 
 ## 2026-07-13T17:30:00Z — User
@@ -238,7 +243,7 @@ Hello
 Hi! How can I help you today?
 ```
 
-The `service` field in session files uses the `llmServerName` config value.
+The `service` field in session files uses the `llmServerName` config value. The `title` and `params` fields (`temperature`, `max_tokens`, `top_p`, `system_prompt`) are optional and only written when set.
 
 ## Features
 
@@ -249,6 +254,11 @@ The `service` field in session files uses the `llmServerName` config value.
 - Markdown session files are human-readable and portable
 - Thinking/reasoning toggle (supported by the LLM server)
 - PDF export via browser print
+- **Edit & regenerate** — edit any sent user message to splice the conversation and re-run the assistant reply from that point, or regenerate an existing reply
+- **Rename & search** — give sessions custom titles (stored in front-matter) and full-text search across all sessions from the sidebar
+- **Export** — download the current conversation as Markdown, JSON, or plain text (in addition to PDF)
+- **Model parameters** — per-session temperature, max tokens, top-p, and a system-prompt override, persisted in front-matter
+- **Image input** — attach images to messages for vision-capable models (embedded in the session and forwarded as multimodal content)
 
 ### Markdown & math rendering notes
 

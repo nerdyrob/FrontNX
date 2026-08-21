@@ -11,7 +11,17 @@
           <span v-if="message.model" class="text-[11px] text-dimmed bg-muted px-1.5 py-0.5 rounded">{{ message.model }}</span>
           <span class="text-[11px] text-dimmed">{{ timestamp }}</span>
           <UButton
-            v-if="!hideActions && message.content"
+            v-if="!hideActions && message.content && !isEditing"
+            icon="i-lucide-pencil"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="text-dimmed hover:text-highlighted active:text-highlighted"
+            title="Edit message"
+            @click="startEdit"
+          />
+          <UButton
+            v-if="!hideActions && message.content && !isEditing"
             icon="i-lucide-trash-2"
             size="2xs"
             color="neutral"
@@ -21,7 +31,7 @@
             @click="$emit('delete', index)"
           />
           <UButton
-            v-if="message.content"
+            v-if="message.content && !isEditing"
             :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
             size="2xs"
             color="neutral"
@@ -31,7 +41,21 @@
             @click="copyMessage(copyableContent)"
           />
         </div>
-        <div class="pl-9">
+        <div v-if="isEditing" class="pl-9 space-y-2">
+          <textarea
+            ref="editTextareaRef"
+            v-model="editText"
+            rows="3"
+            class="w-full bg-elevated border border-default rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+            @keydown.esc.prevent="cancelEdit"
+            @keydown.enter.exact.prevent="saveEdit"
+          />
+          <div class="flex items-center gap-2">
+            <UButton size="2xs" color="primary" variant="solid" @click="saveEdit">Save & regenerate</UButton>
+            <UButton size="2xs" color="neutral" variant="ghost" @click="cancelEdit">Cancel</UButton>
+          </div>
+        </div>
+        <div v-else class="pl-9">
           <MarkdownRenderer :content="message.content" />
         </div>
       </div>
@@ -51,6 +75,16 @@
             <span class="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" style="animation-delay: 300ms; animation-duration: 900ms" />
           </span>
           <span v-else-if="timestamp" class="text-[11px] text-dimmed">{{ timestamp }}</span>
+          <UButton
+            v-if="!hideActions && !showProgressDots && message.content && !streaming"
+            icon="i-lucide-refresh-cw"
+            size="2xs"
+            color="neutral"
+            variant="ghost"
+            class="text-dimmed hover:text-highlighted active:text-highlighted"
+            title="Regenerate response"
+            @click="$emit('regenerate', index)"
+          />
           <UButton
             v-if="!hideActions && !showProgressDots && message.content"
             icon="i-lucide-trash-2"
@@ -106,9 +140,34 @@ const props = defineProps<{
   streaming?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   delete: [index: number]
+  edit: [index: number, newText: string]
+  regenerate: [index: number]
 }>()
+
+const isEditing = ref(false)
+const editText = ref('')
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
+
+function startEdit() {
+  editText.value = props.message.content
+  isEditing.value = true
+  nextTick(() => editTextareaRef.value?.focus())
+}
+
+function saveEdit() {
+  const text = editText.value.trim()
+  if (!text) return
+  isEditing.value = false
+  editText.value = ''
+  emit('edit', props.index, text)
+}
+
+function cancelEdit() {
+  isEditing.value = false
+  editText.value = ''
+}
 
 const detailsOpen = ref(false)
 

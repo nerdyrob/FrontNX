@@ -36,6 +36,25 @@ function parseResponseStateComment(content: string): { content: string; response
   }
 }
 
+// Serializes session-level model parameters into front-matter lines.
+function formatParams(params?: ModelParams): string[] {
+  if (!params) return []
+  const lines: string[] = []
+  if (typeof params.temperature === 'number' && !Number.isNaN(params.temperature)) {
+    lines.push(`temperature: ${params.temperature}`)
+  }
+  if (typeof params.maxTokens === 'number' && !Number.isNaN(params.maxTokens)) {
+    lines.push(`max_tokens: ${params.maxTokens}`)
+  }
+  if (typeof params.topP === 'number' && !Number.isNaN(params.topP)) {
+    lines.push(`top_p: ${params.topP}`)
+  }
+  if (params.systemPrompt) {
+    lines.push(`system_prompt: ${params.systemPrompt.replace(/\r?\n/g, ' ').trim()}`)
+  }
+  return lines
+}
+
 function parseAssistantMetadata(content: string): {
   content: string
   metrics?: ChatMessage['metrics']
@@ -81,6 +100,8 @@ export class SessionService {
       `model: ${meta.model}`,
       `service: ${meta.service}`,
       `created: ${meta.created}`,
+      ...(meta.title ? [`title: ${meta.title}`] : []),
+      ...formatParams(meta.params),
       '---',
       '',
     ].join('\n')
@@ -100,7 +121,7 @@ export class SessionService {
   }
 
   parseMarkdown(content: string): { meta: SessionMeta; messages: ChatMessage[] } {
-    const meta: SessionMeta = { model: '', service: '', created: '' }
+    const meta: SessionMeta = { model: '', service: '', created: '', title: undefined }
     const messages: ChatMessage[] = []
 
     const lines = content.split('\n')
@@ -116,6 +137,11 @@ export class SessionService {
         if (key === 'model') meta.model = value
         else if (key === 'service') meta.service = value
         else if (key === 'created') meta.created = value
+        else if (key === 'title') meta.title = value
+        else if (key === 'temperature') meta.params = { ...meta.params, temperature: Number(value) }
+        else if (key === 'max_tokens') meta.params = { ...meta.params, maxTokens: Number(value) }
+        else if (key === 'top_p') meta.params = { ...meta.params, topP: Number(value) }
+        else if (key === 'system_prompt') meta.params = { ...meta.params, systemPrompt: value }
         i++
       }
       i++ // skip closing ---
@@ -171,6 +197,35 @@ export class SessionService {
     }
 
     return { meta, messages }
+  }
+
+  // Clean, readable Markdown for export (no YAML front-matter, optional
+  // title heading). Pairs with the export feature (new-features #3).
+  exportAsMarkdown(messages: ChatMessage[], meta: SessionMeta): string {
+    const lines: string[] = []
+    if (meta.title) {
+      lines.push(`# ${meta.title}`, '')
+    }
+    for (const msg of messages) {
+      const who = msg.role === 'assistant' ? 'Assistant' : 'User'
+      lines.push(`## ${who}`, '', msg.content, '')
+    }
+    return `${lines.join('\n').trimEnd()}\n`
+  }
+
+  // Plain-text transcript: "Role:\ncontent" blocks separated by blank lines.
+  exportAsText(messages: ChatMessage[]): string {
+    if (messages.length === 0) return ''
+    const blocks = messages.map((msg) => {
+      const who = msg.role === 'assistant' ? 'Assistant' : 'User'
+      return `${who}:\n${msg.content}`
+    })
+    return `${blocks.join('\n\n')}\n`
+  }
+
+  // Structured JSON containing the session meta and full message list.
+  exportAsJson(messages: ChatMessage[], meta: SessionMeta): string {
+    return JSON.stringify({ meta, messages }, null, 2)
   }
 
 }

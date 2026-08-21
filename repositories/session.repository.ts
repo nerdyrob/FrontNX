@@ -17,4 +17,6 @@ export interface ISessionRepository {
   append(path: string, block: string): Promise<void>
   list(): Promise<SessionListItem[]>
   delete(path: string): Promise<void>
+  search(query: string): Promise<SessionListItem[]>
+  rename(path: string, title: string): Promise<void>
 }

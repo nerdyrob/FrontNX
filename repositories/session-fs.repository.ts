@@ -121,15 +121,50 @@ export class SessionFsRepository implements ISessionRepository {
       files.map(async (f) => {
         const id = f.replace(/\.md$/, '')
         const filePath = join(this.baseDir, f)
-        const { preview, timestamp, totalTokens, totalProcessingTimeMs } = await this.extractPreview(filePath)
+        const { title, preview, timestamp, totalTokens, totalProcessingTimeMs } = await this.extractPreview(filePath)
         // `path` is the opaque filename, resolved server-side from baseDir.
-        return { id, path: f, title: id, preview, timestamp, totalTokens, totalProcessingTimeMs }
+        return { id, path: f, title, preview, timestamp, totalTokens, totalProcessingTimeMs }
       }),
     )
     return entries.sort((a, b) => b.id.localeCompare(a.id))
   }
 
-  private async extractPreview(filePath: string): Promise<{ preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number }> {
+  async search(query: string): Promise<SessionListItem[]> {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    if (!existsSync(this.baseDir)) return []
+
+    const files = readdirSync(this.baseDir).filter((f) => f.endsWith('.md'))
+    const entries = await Promise.all(
+      files.map(async (f) => {
+        const id = f.replace(/\.md$/, '')
+        const filePath = join(this.baseDir, f)
+        try {
+          const { title, preview, timestamp, totalTokens, totalProcessingTimeMs, text } = await this.extractPreview(filePath)
+          if (!text.includes(q)) return null
+          // `path` is the opaque filename, resolved server-side from baseDir.
+          return { id, path: f, title, preview, timestamp, totalTokens, totalProcessingTimeMs }
+        } catch (err) {
+          console.warn('Failed to parse session file during search:', filePath, err)
+          return null
+        }
+      }),
+    )
+    return entries
+      .filter((e): e is SessionListItem => e !== null)
+      .sort((a, b) => b.id.localeCompare(a.id))
+  }
+
+  async rename(path: string, title: string): Promise<void> {
+    const safeTitle = title.replace(/\r?\n/g, ' ').trim()
+    const content = await this.read(path)
+    const { meta, messages } = this.sessionService.parseMarkdown(content)
+    meta.title = safeTitle
+    const updated = this.sessionService.buildMarkdown(messages, meta)
+    await this.write(path, updated)
+  }
+
+  private async extractPreview(filePath: string): Promise<{ title: string; preview: string; timestamp: string; totalTokens: number; totalProcessingTimeMs: number; text: string }> {
     try {
       const content = await readFile(filePath, 'utf-8')
       const { meta, messages } = this.sessionService.parseMarkdown(content)
@@ -138,15 +173,22 @@ export class SessionFsRepository implements ISessionRepository {
       const totalTokens = messages.reduce((sum, message) => sum + (message.metrics?.tokensUsed ?? 0), 0)
       const totalProcessingTimeMs = messages.reduce((sum, message) => sum + (message.metrics?.processingTimeMs ?? 0), 0)
 
+      const text = [meta.title ?? '', ...messages.map((m) => m.content)]
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+
       return {
+        title: meta.title ?? '',
         preview,
         timestamp: meta.created,
         totalTokens,
         totalProcessingTimeMs,
+        text,
       }
     } catch (err) {
       console.warn('Failed to parse session file:', filePath, err)
-      return { preview: '', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0 }
+      return { title: '', preview: '', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0, text: '' }
     }
   }
 

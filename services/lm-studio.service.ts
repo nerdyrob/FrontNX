@@ -17,6 +17,16 @@ interface ChatResponse {
   stopReason?: string
 }
 
+export interface ChatRequestOptions {
+  temperature?: number
+  maxTokens?: number
+  topP?: number
+  // When true, base64 images embedded in user messages are forwarded to the
+  // model as multimodal content parts (vision-capable models). When false
+  // (default), images are stripped from the API payload (new-features #5).
+  includeImages?: boolean
+}
+
 export class LmStudioService {
   constructor(private baseUrl: string) {}
 
@@ -90,6 +100,32 @@ export class LmStudioService {
     return text.replace(/data:image\/[a-z+]+;base64,[a-zA-Z0-9+/=]+/g, '[image omitted]')
   }
 
+  // Builds the API `content` for a message. By default images are stripped
+  // (see sanitizeForApi). When `includeImages` is set and the message contains
+  // markdown-embedded base64 images, returns an OpenAI-style multimodal content
+  // array so vision-capable models can see them (new-features #5).
+  private toApiContent(text: string, includeImages: boolean): string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> {
+    if (!includeImages) return this.sanitizeForApi(text)
+
+    const imageMatches = [...text.matchAll(/!\[[^\]]*\]\((data:image\/[a-zA-Z0-9/+]+;base64,[^)\s]+)\)/g)]
+    if (imageMatches.length === 0) return this.sanitizeForApi(text)
+
+    const parts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+    let lastIndex = 0
+    for (const match of imageMatches) {
+      const full = match[0]
+      const start = match.index ?? 0
+      const before = text.slice(lastIndex, start)
+      if (before.trim()) parts.push({ type: 'text', text: this.sanitizeForApi(before) })
+      parts.push({ type: 'image_url', image_url: { url: match[1] } })
+      lastIndex = start + full.length
+    }
+    const after = text.slice(lastIndex)
+    if (after.trim()) parts.push({ type: 'text', text: this.sanitizeForApi(after) })
+
+    return parts
+  }
+
   async sendChat(
     messages: ChatMessage[],
     model: string,
@@ -98,8 +134,12 @@ export class LmStudioService {
     reasoning?: boolean,
     onReasoning?: (delta: string) => void,
     customSystemPrompt?: string,
+    options?: ChatRequestOptions,
   ): Promise<ChatResponse> {
-    const baseMessages = messages.map(m => ({ role: m.role, content: this.sanitizeForApi(m.content) }))
+    const baseMessages = messages.map(m => ({
+      role: m.role,
+      content: this.toApiContent(m.content, options?.includeImages ?? false),
+    }))
 
     const builtinPrompt = [
       'You are a helpful assistant with access to a rich markdown renderer.',
@@ -141,6 +181,9 @@ export class LmStudioService {
       messages: adjustedMessages,
       stream: true,
       reasoning: reasoning ? 'on' : 'off',
+      ...(typeof options?.temperature === 'number' ? { temperature: options.temperature } : {}),
+      ...(typeof options?.maxTokens === 'number' ? { max_tokens: options.maxTokens } : {}),
+      ...(typeof options?.topP === 'number' ? { top_p: options.topP } : {}),
     })
 
     const res = await fetch(`${this.baseUrl}/v0/chat/completions`, {

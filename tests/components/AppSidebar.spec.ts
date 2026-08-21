@@ -5,7 +5,7 @@ import AppSidebar from '~/components/AppSidebar.vue'
 
 describe('AppSidebar', () => {
   it('renders sessions list when open', () => {
-    const sessions = [{ id: '1', path: '/tmp/a.md', title: 'Session 1', preview: 'Hello', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0 }]
+    const sessions = [{ id: '1', path: '/tmp/a.md', title: '', preview: 'Hello', timestamp: '', totalTokens: 0, totalProcessingTimeMs: 0 }]
     const wrapper = mount(AppSidebar, {
       props: { sessions, open: true },
       global: { stubs: { UIcon: true, UButton: true } },
