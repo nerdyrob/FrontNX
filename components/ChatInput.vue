@@ -21,7 +21,7 @@
           </button>
         </div>
       </div>
-      <div class="relative flex items-end gap-2 bg-elevated rounded-2xl border border-default px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary focus-within:shadow-md transition-all">
+      <div class="relative flex items-center gap-2 bg-elevated rounded-2xl border border-default px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary focus-within:shadow-md transition-all">
         <input
           ref="fileInputRef"
           type="file"
@@ -43,7 +43,7 @@
           v-model="text"
           rows="1"
           placeholder="Type a message…"
-          class="flex-1 min-h-8 self-end bg-transparent border-0 outline-none ring-0 p-0 text-sm resize-none placeholder:text-muted leading-[2rem] max-h-[7.5rem] overflow-y-auto"
+          class="flex-1 min-h-8 px-0 py-[5px] bg-transparent border-0 outline-none ring-0 text-sm resize-none placeholder:text-muted leading-normal max-h-[7.5rem] overflow-y-auto scrollbar-hide"
           :disabled="disabled"
           @input="resizeTextarea"
           @keydown.enter.exact.prevent="send"
