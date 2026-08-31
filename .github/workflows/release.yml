@@ -24,7 +24,6 @@ jobs:
           - os: windows-latest
             binary: frontnx.exe
             archive: frontnx-win-x64.zip
-            pack: zip -r
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +37,7 @@ jobs:
 
       - run: npm run build:sea
 
-      - name: Package release
+      - name: Prepare release
         shell: bash
         run: |
           mkdir -p release
@@ -48,7 +47,19 @@ jobs:
           cp README.md release/
           cp frontnx.desktop release/
           cp -r assets/icons release/icons
+
+      - name: Pack release (tar)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
           cd release && ${{ matrix.pack }} ../${{ matrix.archive }} .
+
+      - name: Pack release (zip)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd release
+          Compress-Archive -Path * -DestinationPath ../frontnx-win-x64.zip
 
       - name: Upload release asset
         shell: bash
