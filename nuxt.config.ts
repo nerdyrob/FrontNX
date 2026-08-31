@@ -46,6 +46,12 @@ export default defineNuxtConfig({
     output: {
       dir: process.env.NITRO_OUTPUT_DIR || defaultNitroOutput,
     },
+    replace: {
+      // Use backticks instead of double quotes so Nitro's `typeof window`
+      // dead-code replacement doesn't corrupt papaparse's worker-Blob string
+      // (see nitrojs/nitro#3071), which breaks the Windows Rollup build.
+      'typeof window': '`undefined`',
+    },
   },
   ui: {
     theme: {
