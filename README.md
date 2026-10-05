@@ -4,6 +4,8 @@ A configurable chat frontend for LLM servers (e.g. LM Studio) built with [Nuxt 3
 
 Each conversation session is persisted to a unique markdown file with front-matter metadata (model, service, timestamp).
 
+<img width="1253" height="855" alt="FrontNX" src="https://github.com/user-attachments/assets/12773325-dd78-4843-ab9f-d73d103972b6" />
+
 ## Architecture
 
 ```
