@@ -43,7 +43,7 @@
           v-model="text"
           rows="1"
           placeholder="Type a message…"
-          class="flex-1 min-h-8 px-0 py-[5px] bg-transparent border-0 outline-none ring-0 text-sm resize-none placeholder:text-muted leading-normal max-h-[7.5rem] overflow-y-auto scrollbar-hide"
+          class="flex-1 min-h-8 px-0 py-[5px] bg-transparent border-0 outline-none ring-0 text-sm resize-none placeholder:text-muted leading-snug max-h-[7.5rem] overflow-y-auto scrollbar-hide"
           :disabled="disabled"
           @input="resizeTextarea"
           @keydown.enter.exact.prevent="send"

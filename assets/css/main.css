@@ -60,21 +60,21 @@ body {
   font-size: inherit;
 }
 
-.prose-message table {
+.prose-message table:not(.data-table-wrapper table) {
   width: 100%;
   border-collapse: collapse;
   margin: 0.75em 0;
   font-size: 0.875em;
 }
 
-.prose-message th,
-.prose-message td {
+.prose-message th:not(.data-table-wrapper th),
+.prose-message td:not(.data-table-wrapper td) {
   border: 1px solid var(--ui-border);
   padding: 0.5em 0.75em;
   text-align: left;
 }
 
-.prose-message th {
+.prose-message th:not(.data-table-wrapper th) {
   background: var(--ui-bg-elevated);
   font-weight: 600;
 }

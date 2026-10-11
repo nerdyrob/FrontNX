@@ -1,9 +1,53 @@
 import { Readable } from 'node:stream'
+import type { H3Event } from 'h3'
 
 const ALLOWED_LM_PATHS = new Set([
   'v0/models',
   'v0/chat/completions',
 ])
+
+// Stream-read the request body with a hard byte cap, rejecting oversized
+// uploads *while* they arrive (code-review follow-up).  The previous
+// readBody-then-check pattern buffered the entire payload and re-stringified
+// it twice before the 413 could fire, so a large conversation (e.g. pasted
+// base64 images) could transiently exhaust the dev worker's JS heap.
+async function readBodyCapped(
+  event: H3Event,
+  maxBytes: number,
+): Promise<{ raw: Buffer; parsed?: Record<string, unknown> } | null> {
+  const req = event.node.req
+  const chunks: Buffer[] = []
+  let total = 0
+  try {
+    for await (const chunk of req) {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      total += buf.length
+      if (total > maxBytes) {
+        // Stop consuming: do not buffer the rest of the upload.  Responding
+        // without destroying the socket lets the 413 still reach the client.
+        break
+      }
+      chunks.push(buf)
+    }
+  } catch {
+    // Upload aborted or reset mid-stream; mirror the old readBody behavior
+    // of proceeding without a body.
+    return null
+  }
+  if (total === 0) return null
+  if (total > maxBytes) {
+    throw createError({
+      statusCode: 413,
+      message: `Request too large (max ${Math.round(maxBytes / 1024 / 1024)} MB)`,
+    })
+  }
+  const raw = Buffer.concat(chunks)
+  try {
+    return { raw, parsed: JSON.parse(raw.toString('utf-8')) as Record<string, unknown> }
+  } catch {
+    return { raw }
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -22,22 +66,14 @@ export default defineEventHandler(async (event) => {
   }
 
   let body: Record<string, unknown> | undefined
+  let bodyRaw: Buffer | undefined
   if (method !== 'GET' && method !== 'HEAD') {
-    try {
-      body = await readBody(event)
-    } catch {
-      body = undefined
-    }
-  }
-
-  // Limit proxied request body size.  Configurable via
-  // NUXT_PUBLIC_MAX_PROXY_BODY_BYTES (default 10 MB).
-  if (body) {
-    const size = new TextEncoder().encode(JSON.stringify(body)).length
+    // Limit proxied request body size while reading (configurable via
+    // NUXT_PUBLIC_MAX_PROXY_BODY_BYTES, default 10 MB).
     const maxBody = Number(config.public.maxProxyBodyBytes) || 10 * 1024 * 1024
-    if (size > maxBody) {
-      throw createError({ statusCode: 413, message: `Request too large (max ${Math.round(maxBody / 1024 / 1024)} MB)` })
-    }
+    const capped = await readBodyCapped(event, maxBody)
+    body = capped?.parsed
+    bodyRaw = capped?.raw
   }
 
   checkRateLimit(event)
@@ -46,7 +82,9 @@ export default defineEventHandler(async (event) => {
     const res = await fetch(target, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
+      // Forward the original raw bytes instead of re-stringifying the parsed
+      // body (one less full-size copy per proxied request).
+      body: body && bodyRaw ? (bodyRaw as BodyInit) : undefined,
       signal: event.signal || undefined,
     })
 

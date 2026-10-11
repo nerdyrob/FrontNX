@@ -2,7 +2,7 @@
   <div class="group relative animate-in">
     <!-- User message -->
     <div v-if="message.role === 'user'" class="flex gap-3">
-      <div class="flex-1 max-w-none">
+      <div class="flex-1 min-w-0 max-w-none">
         <div class="flex items-center gap-2.5 mb-2">
           <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <UIcon name="i-lucide-user" class="w-3.5 h-3.5 text-white" />
@@ -63,7 +63,7 @@
 
     <!-- Assistant message -->
     <div v-else class="flex gap-3">
-      <div class="flex-1 max-w-none">
+      <div class="flex-1 min-w-0 max-w-none">
         <div class="flex items-center gap-2.5 mb-2">
           <div class="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             <UIcon name="i-lucide-bot-message-square" class="w-3.5 h-3.5 text-primary" />

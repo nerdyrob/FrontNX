@@ -127,7 +127,9 @@
 </template>
 
 <script setup lang="ts">
-import { parse as parseCsv, unparse as unparseCsv } from 'papaparse'
+// papaparse is CommonJS: default-import + destructure so the named exports
+// survive in both the browser bundle and the nitro server build (code-review).
+import Papa from 'papaparse'
 import {
   useVueTable,
   getCoreRowModel,
@@ -152,7 +154,7 @@ interface Row {
 }
 
 const parsed = computed(() => {
-  const result = parseCsv<Row>(props.code, {
+  const result = Papa.parse<Row>(props.code, {
     header: true,
     skipEmptyLines: true,
     delimiter: separator.value,
@@ -232,7 +234,7 @@ const visiblePageNumbers = computed(() => {
 
 function exportCsv() {
   // Export the full dataset, not the truncated view (code-review #3).
-  const csv = unparseCsv(rawData.value)
+  const csv = Papa.unparse(rawData.value)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
