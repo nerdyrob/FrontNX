@@ -131,6 +131,11 @@
 
 <script setup lang="ts">
 import type { ChatMessage } from '~/types'
+import {
+  formatPdfBlocksForCopy,
+  restoreAttachmentPayloads,
+  stripAttachmentPayloads,
+} from '~/utils/pdf-attachment'
 
 const props = defineProps<{
   message: ChatMessage
@@ -149,24 +154,32 @@ const emit = defineEmits<{
 const isEditing = ref(false)
 const editText = ref('')
 const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
+// Attachment payloads stripped from the editable text so base64 images and
+// extracted PDF text do not fill the textarea. Put back verbatim on save.
+let editAttachments: string[] = []
 
 function startEdit() {
-  editText.value = props.message.content
+  const split = stripAttachmentPayloads(props.message.content)
+  editText.value = split.text
+  editAttachments = split.attachments
   isEditing.value = true
   nextTick(() => editTextareaRef.value?.focus())
 }
 
 function saveEdit() {
   const text = editText.value.trim()
-  if (!text) return
+  if (!text && editAttachments.length === 0) return
   isEditing.value = false
   editText.value = ''
-  emit('edit', props.index, text)
+  const content = restoreAttachmentPayloads(text, editAttachments)
+  editAttachments = []
+  emit('edit', props.index, content)
 }
 
 function cancelEdit() {
   isEditing.value = false
   editText.value = ''
+  editAttachments = []
 }
 
 const detailsOpen = ref(false)
@@ -212,7 +225,8 @@ const displayContent = computed(() => {
 })
 
 const copyableContent = computed(() => {
-  return props.message.role === 'assistant' ? displayContent.value : props.message.content
+  if (props.message.role === 'assistant') return displayContent.value
+  return formatPdfBlocksForCopy(props.message.content)
 })
 
 const { copied, copy: copyMessage } = useClipboard()

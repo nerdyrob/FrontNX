@@ -12,12 +12,18 @@
         :src="segment.src"
         :alt="segment.alt"
       />
+      <PdfAttachment
+        v-else-if="segment.type === 'pdf'"
+        :attachment="segment.attachment"
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { PdfAttachment } from '~/types'
 import { createMd, type MdEnv } from '~/utils/markdown'
+import { extractPdfAttachmentBlocks } from '~/utils/pdf-attachment'
 import katex from 'katex'
 
 const props = defineProps<{
@@ -84,6 +90,7 @@ type Segment =
   | { type: 'html'; html: string }
   | { type: 'code'; code: string; lang: string }
   | { type: 'image'; src: string; alt: string }
+  | { type: 'pdf'; attachment: PdfAttachment }
 
 function extractBase64Images(html: string): { text: string; images: { src: string; alt: string }[] } {
   const images: { src: string; alt: string }[] = []
@@ -100,8 +107,13 @@ function extractBase64Images(html: string): { text: string; images: { src: strin
 const segments = computed<Segment[]>(() => {
   if (!props.content) return []
 
+  // Pull PDF attachment blocks out before markdown-it sees them so the fence
+  // never renders as a code block and any backticks inside the extracted text
+  // cannot disturb the surrounding markdown.
+  const { content: contentWithoutPdf, attachments: pdfAttachments } = extractPdfAttachmentBlocks(props.content)
+
   const codeFenceChunks: string[] = []
-  const afterLatexNorm = normalizeBracketedLatex(props.content)
+  const afterLatexNorm = normalizeBracketedLatex(contentWithoutPdf)
 
   const protectedFromMath = afterLatexNorm
     .replace(/```[\s\S]*?```/g, (chunk) => {
@@ -138,14 +150,19 @@ const segments = computed<Segment[]>(() => {
 
   const { text: htmlWithImagePlaceholders, images } = extractBase64Images(html)
 
+  // A PDF block usually sits alone in its own paragraph. Drop the wrapper so
+  // the attachment card is a direct child of the message instead of being
+  // surrounded by an empty paragraph.
+  const segmentedHtml = htmlWithImagePlaceholders.replace(/<p>\s*(%%PDFATTACH_\d+%%)\s*<\/p>/g, '$1')
+
   const result: Segment[] = []
   let lastIndex = 0
-  const segmentRegex = /%%(?:CODEBLOCK_(\d+)|BASE64IMG_(\d+))%%/g
+  const segmentRegex = /%%(?:CODEBLOCK_(\d+)|BASE64IMG_(\d+)|PDFATTACH_(\d+))%%/g
   let match: RegExpExecArray | null
 
-  while ((match = segmentRegex.exec(htmlWithImagePlaceholders)) !== null) {
+  while ((match = segmentRegex.exec(segmentedHtml)) !== null) {
     if (match.index > lastIndex) {
-      result.push({ type: 'html', html: htmlWithImagePlaceholders.slice(lastIndex, match.index) })
+      result.push({ type: 'html', html: segmentedHtml.slice(lastIndex, match.index) })
     }
     if (match[1] !== undefined) {
       const cb = env.codeBlocks?.[Number(match[1])]
@@ -157,12 +174,17 @@ const segments = computed<Segment[]>(() => {
       if (img) {
         result.push({ type: 'image', src: img.src, alt: img.alt })
       }
+    } else if (match[3] !== undefined) {
+      const attachment = pdfAttachments[Number(match[3])]
+      if (attachment) {
+        result.push({ type: 'pdf', attachment })
+      }
     }
     lastIndex = match.index + match[0].length
   }
 
-  if (lastIndex < htmlWithImagePlaceholders.length) {
-    result.push({ type: 'html', html: htmlWithImagePlaceholders.slice(lastIndex) })
+  if (lastIndex < segmentedHtml.length) {
+    result.push({ type: 'html', html: segmentedHtml.slice(lastIndex) })
   }
 
   return result

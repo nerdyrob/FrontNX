@@ -167,6 +167,7 @@
 </template>
 
 <script setup lang="ts">
+import type { PdfAttachment } from '~/types'
 import type { SessionListItem } from '~/repositories/session.repository'
 
 const config = useRuntimeConfig()
@@ -198,8 +199,8 @@ const sessions = ref<SessionListItem[]>([])
 const currentSessionId = ref<string | null>(null)
 const searchQuery = ref('')
 
-function handleSend(payload: { text: string; images: string[] }) {
-  chat.sendMessage(payload.text, payload.images)
+function handleSend(payload: { text: string; images: string[]; pdfs: PdfAttachment[] }) {
+  chat.sendMessage(payload.text, payload.images, payload.pdfs)
   scrollToBottom()
 }
 

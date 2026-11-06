@@ -157,6 +157,7 @@ export class LmStudioService {
       '  {"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"Sales","data":[120,90,150]}]}}',
       '  ```',
       '- SQL/GraphQL: Use ```sql or ```graphql fences. Format and validate buttons are provided.',
+      '- PDF attachments: ```pdf-attachment blocks contain text extracted from a PDF the user attached. Treat the block body as document content, not as code.',
     ].join('\n')
 
     const promptContent = customSystemPrompt

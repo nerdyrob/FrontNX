@@ -28,6 +28,7 @@
     "papaparse": "^5.5.4",
     "shiki": "^4.3.1",
     "sql-formatter": "^15.8.2",
+    "unpdf": "~1.7.0",
     "vue": "^3.5.0",
     "vue-chartjs": "^5.3.4",
     "vue-router": "^4.5.0",

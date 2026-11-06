@@ -24,6 +24,10 @@ export default defineNuxtConfig({
       maxImageDisplayBytes: 10 * 1024 * 1024,   // Base64Image.vue display cap
       maxSessionFileBytes: 25 * 1024 * 1024,     // session-fs.repository.ts write cap
       maxProxyBodyBytes: 10 * 1024 * 1024,       // LM proxy request body cap
+      // PDF attachment limits (see server/api/pdf/extract.post.ts).
+      maxPdfFileBytes: 20 * 1024 * 1024,         // upload cap
+      maxPdfTextChars: 40_000,                   // extracted text cap per document
+      maxPdfPages: 200,                          // page count cap per document
     },
   },
   typescript: {

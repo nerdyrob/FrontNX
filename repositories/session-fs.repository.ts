@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import type { ISessionRepository, SessionListItem } from './session.repository'
 import type { SessionMeta } from '../types'
 import { SessionService } from '../services/session.service'
+import { collapsePdfAttachmentBlocks } from '../utils/pdf-attachment'
 
 // Guard against unbounded session files (code-review #8).  The limit is
 // configurable via NUXT_PUBLIC_MAX_SESSION_FILE_BYTES; falls back to 25 MB
@@ -177,7 +178,7 @@ export class SessionFsRepository implements ISessionRepository {
       const content = await readFile(filePath, 'utf-8')
       const { meta, messages } = this.sessionService.parseMarkdown(content)
       const firstUserMessage = messages.find((message) => message.role === 'user')
-      const preview = firstUserMessage?.content
+      const preview = (firstUserMessage ? collapsePdfAttachmentBlocks(firstUserMessage.content) : '')
         .replace(/!\[[^\]]*\]\([^)]*\)/g, '[image]')  // collapse image markdown
         .replace(/\s+/g, ' ')
         .trim()

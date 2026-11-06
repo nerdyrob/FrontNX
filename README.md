@@ -22,7 +22,7 @@ server/api         (Nitro routes for file I/O, LM proxy)
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 20.19
 - An LLM server running with an OpenAI-compatible API endpoint
 
 ## Setup
@@ -48,6 +48,9 @@ cp .env.example .env
 | `MAX_IMAGE_DISPLAY_BYTES` | `10485760` (10 MB) | Image rendering cap — larger images show a warning instead of rendering inline |
 | `MAX_SESSION_FILE_BYTES` | `26214400` (25 MB) | Session file write cap — rejects writes that would exceed this |
 | `MAX_PROXY_BODY_BYTES` | `10485760` (10 MB) | LM proxy request body cap — rejects requests that would exceed this |
+| `MAX_PDF_FILE_BYTES` | `20971520` (20 MB) | PDF upload cap (enforced while the body streams in) |
+| `MAX_PDF_TEXT_CHARS` | `40000` | Extracted PDF text cap per document; longer text is truncated |
+| `MAX_PDF_PAGES` | `200` | PDF page count cap; larger documents are rejected |
 
 ## Development
 
@@ -184,7 +187,8 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 ├── types/                     # TypeScript interfaces
 │   ├── model.ts
 │   ├── chat.ts
-│   └── config.ts
+│   ├── config.ts
+│   └── index.ts
 ├── services/                  # Business logic & API calls
 │   ├── lm-studio.service.ts
 │   └── session.service.ts
@@ -197,12 +201,14 @@ Vitest is configured with `@nuxt/test-utils` and `happy-dom`.
 ├── components/                # Vue components
 │   ├── ChatMessage.vue
 │   ├── ChatInput.vue
+│   ├── PdfAttachment.vue
 │   ├── ModelSelector.vue
 │   └── SessionActions.vue
 ├── pages/
 │   └── index.vue              # Main chat page
 ├── server/
 │   ├── api/lm/[...].ts        # LM API proxy
+│   ├── api/pdf/extract.post.ts # PDF text extraction
 │   └── api/session/           # Session persistence API routes
 │       ├── create.post.ts
 │       ├── rewrite.post.ts
@@ -265,6 +271,30 @@ The `service` field in session files uses the `llmServerName` config value. The 
 - **Export** — download the current conversation as Markdown, JSON, or plain text (in addition to PDF)
 - **Model parameters** — per-session temperature, max tokens, top-p, and a system-prompt override, persisted in front-matter
 - **Image input** — attach images to messages for vision-capable models (embedded in the session and forwarded as multimodal content)
+- **PDF input** — attach PDFs; text is extracted on the FrontNX server, capped, and sent to the model as document context (persisted in the session)
+
+### PDF attachments
+
+Use the PDF button in the composer to attach up to five PDFs per message. The
+FrontNX server extracts their text with PDF.js (through `unpdf`), validates the
+file header, and returns the text to the composer. Only the extracted text is
+sent to the model and saved in the session file — the original PDF is never
+stored.
+
+Extracted text is embedded in the message as a fenced `pdf-attachment` block:
+
+````markdown
+```pdf-attachment {"name":"report.pdf","pages":3,"characters":18240,"truncated":false}
+--- Page 1 ---
+...
+```
+````
+
+The chat renders that block as a collapsible card, while the model receives the
+text as ordinary document content. Limits are configurable (see the environment
+table above); text beyond `MAX_PDF_TEXT_CHARS` is truncated and clearly marked.
+Scanned or image-only PDFs have no text layer and are rejected with a message
+instead of being sent empty.
 
 ### Markdown & math rendering notes
 

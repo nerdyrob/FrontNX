@@ -23,6 +23,17 @@ export interface ModelParams {
   systemPrompt?: string
 }
 
+// Text extracted from a PDF the user attached to a message. The raw file is
+// never stored; only the extracted text is sent to the model and persisted in
+// the session markdown (see utils/pdf-attachment.ts).
+export interface PdfAttachment {
+  name: string
+  pages: number
+  characters: number
+  truncated: boolean
+  text: string
+}
+
 export interface SessionMeta {
   model: string
   service: string

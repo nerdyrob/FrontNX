@@ -1,5 +1,6 @@
-import type { ChatMessage, ModelOption, ModelParams, SessionMeta } from '~/types'
+import type { ChatMessage, ModelOption, ModelParams, PdfAttachment, SessionMeta } from '~/types'
 import { uid } from '~/utils/uid'
+import { buildPdfAttachmentBlock } from '~/utils/pdf-attachment'
 import { LmStudioService } from '~/services/lm-studio.service'
 import { SessionService } from '~/services/session.service'
 import { downloadTextFile } from '~/utils/download'
@@ -239,20 +240,28 @@ export function useChatState() {
     entry.meta = snapshotMeta()
   }
 
-  async function sendMessage(text: string, images?: string[]) {
+  async function sendMessage(text: string, images?: string[], pdfs?: PdfAttachment[]) {
     if (!selectedModel.value) return
     // Only one stream may run at a time; don't enqueue an orphaned user turn
     // behind a background stream on another session.
     if (streamingKey.value !== null) return
 
     // Embed attached images as markdown image links so they render in the chat
-    // and persist in the session file (new-features #5).
-    let content = text
+    // and persist in the session file (new-features #5). PDF text is embedded
+    // as a fenced block that MarkdownRenderer turns into an attachment card.
     const safeImages = (images ?? []).filter((src) => /^data:image\/[a-zA-Z0-9/+]+;base64,/.test(src))
-    if (safeImages.length > 0) {
-      const imageMarkdown = safeImages.map(src => `\n![image](${src})`).join('')
-      content = text ? `${text}${imageMarkdown}` : imageMarkdown.trim()
-    }
+    const safePdfs = (pdfs ?? []).filter((pdf) =>
+      pdf
+      && typeof pdf.name === 'string'
+      && typeof pdf.text === 'string'
+      && pdf.text.trim().length > 0,
+    )
+
+    const parts: string[] = []
+    if (text) parts.push(text)
+    if (safeImages.length > 0) parts.push(safeImages.map(src => `![image](${src})`).join('\n'))
+    if (safePdfs.length > 0) parts.push(safePdfs.map(buildPdfAttachmentBlock).join('\n\n'))
+    const content = parts.filter(Boolean).join('\n\n').trim()
 
     const userMsg: ChatMessage = {
       id: uid(),
@@ -576,11 +585,6 @@ export function useChatState() {
       await persistence.write(newKey, content)
       sessionRefreshTick.value++
     }
-  }
-
-  async function rewriteSessionFile() {
-    if (!currentSessionPath.value) return
-    await saveBufferToPath(currentSessionPath.value)
   }
 
   return {

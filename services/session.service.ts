@@ -1,4 +1,4 @@
-import type { ChatMessage, SessionMeta } from '../types'
+import type { ChatMessage, ModelParams, SessionMeta } from '../types'
 import { uid } from '../utils/uid'
 
 function formatMetrics(metrics: ChatMessage['metrics']): string {
@@ -125,11 +125,9 @@ export class SessionService {
     const messages: ChatMessage[] = []
 
     const lines = content.split('\n')
-    let inFrontMatter = false
     let i = 0
 
     if (lines[0]?.trim() === '---') {
-      inFrontMatter = true
       i = 1
       while (i < lines.length && lines[i]?.trim() !== '---') {
         const [key, ...rest] = lines[i].split(':')

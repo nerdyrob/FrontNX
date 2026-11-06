@@ -55,7 +55,7 @@ describe('ChatInput image attach', () => {
 
     const sent = wrapper.emitted('send')
     expect(sent).toBeTruthy()
-    expect(sent![0][0]).toEqual({ text: 'describe this', images: [dataUrl] })
+    expect(sent![0][0]).toEqual({ text: 'describe this', images: [dataUrl], pdfs: [] })
   })
 
   it('removes an attached image preview', async () => {
@@ -118,7 +118,7 @@ describe('ChatInput image attach', () => {
 
     const sent = wrapper.emitted('send')
     expect(sent).toBeTruthy()
-    expect(sent![0][0]).toEqual({ text: 'look at this', images: [dataUrl] })
+    expect(sent![0][0]).toEqual({ text: 'look at this', images: [dataUrl], pdfs: [] })
   })
 
   it('ignores paste events with no images', async () => {

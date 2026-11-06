@@ -15,7 +15,7 @@
 import type { ModelOption } from '~/types'
 
 const props = defineProps<{
-  models: ModelOption[]
+  models: readonly ModelOption[]
   modelValue: string
 }>()
 
